@@ -1,0 +1,61 @@
+{
+  "repository": "https://github.com/beamj786-rgb/JL-Automation-Agency",
+  "commit": "d372171f3b6a9b05be993ee884842197f5a38576",
+  "sourceRoot": "jl-workspace/public",
+  "fontMap": {
+    "FunnelDisplay-Light.ttf": "fonts/brand-font-0.ttf",
+    "FunnelSans-Regular.ttf": "fonts/brand-font-6.ttf",
+    "GeistMono-Regular.ttf": "fonts/brand-font-10.ttf"
+  },
+  "derivatives": "PNG and ICO raster exports of the unchanged original Orbit SVGs. No recolouring or effects.",
+  "files": [
+    {
+      "path": "assets/brand/JLVoice.ico",
+      "sha256": "e5b9947dec568bca403671d26fedb8ead76761574620fdae85c9ef0c65a556a0"
+    },
+    {
+      "path": "assets/brand/app-icon.svg",
+      "sha256": "bc854a707b9e2193af16d82acee16e8807cd473a08968c2458cd3986ecaeb3fb"
+    },
+    {
+      "path": "assets/brand/mark-dark.png",
+      "sha256": "b24096abad6b34d59ccc04275660eaf598b19b7cfd90ccf0420748d9e318abb3"
+    },
+    {
+      "path": "assets/brand/mark-dark.svg",
+      "sha256": "2f77c0051dd891b92b9151d34197054e1d4e7fa51de0bf749cc53a1b23b5b8a5"
+    },
+    {
+      "path": "assets/brand/mark-light.png",
+      "sha256": "1b07c224325c788d0b7fce2dc75f251a136e249f7008b1a4293537aaa7334730"
+    },
+    {
+      "path": "assets/brand/mark-light.svg",
+      "sha256": "74e63c15985f9a06737477ee14e6280cba2aef3673477854f5a324932f087b44"
+    },
+    {
+      "path": "assets/fonts/FunnelDisplay-Light.ttf",
+      "sha256": "f698e545b133b9c729417658f632b094a19e1d035bfae942d44beca8d5354732"
+    },
+    {
+      "path": "assets/fonts/FunnelDisplay-OFL.txt",
+      "sha256": "c6ff6dad54105e0c921b676eda28f4cb39d04570c985ffbb68bb1cbe4b3b12b1"
+    },
+    {
+      "path": "assets/fonts/FunnelSans-OFL.txt",
+      "sha256": "c6ff6dad54105e0c921b676eda28f4cb39d04570c985ffbb68bb1cbe4b3b12b1"
+    },
+    {
+      "path": "assets/fonts/FunnelSans-Regular.ttf",
+      "sha256": "d9cd65b22ca457dee2310777973cb3b77e55d28866cc574018a77cd593d5d0d6"
+    },
+    {
+      "path": "assets/fonts/GeistMono-OFL.txt",
+      "sha256": "f12f59163d92084b0473315ae4566cde0c1233d940ae464f5225a69c347cc691"
+    },
+    {
+      "path": "assets/fonts/GeistMono-Regular.ttf",
+      "sha256": "7022da390e9b401ea35b722f8ed2376948e70add10954bc798839b4bfe17ef3f"
+    }
+  ]
+}

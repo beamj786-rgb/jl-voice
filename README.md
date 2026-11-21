@@ -17,6 +17,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 - Unicode keyboard insertion with an original-window check, without changing the clipboard. Input dispatch still needs real target-app acceptance testing.
 - Worker exits after each dictation, releasing model memory. No prewarming, idle inference, or resident LLM.
 - Portable settings, pinned model download hashes, Windows packaging script and developer benchmark tools.
+- JL Automation native UI: bundled Funnel Display / Funnel Sans / Geist Mono, original Orbit assets, dark/light/system themes, Czech/English interface, overview and settings pages. See [UI design and review](docs/UI.md).
 
 Automatic mode currently uses upstream language detection for the recording, **not verified language switching within one recording**. No candidate model has passed Czech/English quality acceptance; the small quantized base model is an experiment, not an accuracy claim.
 

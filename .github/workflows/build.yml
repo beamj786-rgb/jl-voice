@@ -40,4 +40,19 @@ jobs:
           '@ | python -
       - name: Windows tray startup and idle monitor smoke test
         run: python benchmarks/app.py --app artifacts/JLVoice/JLVoice.exe --seconds 12 --scenario idle --output artifacts/ci-idle.json
-      # No package upload, release, deployment or publication in this workflow.
+      - name: Native UI render and layout review
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath "$pwd/artifacts/JLVoice/JLVoice.exe" -ArgumentList '--ui-review', "$pwd/artifacts/ui-review" -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw "UI review failed: $($app.ExitCode)" }
+      - name: Review screenshots and measurement metadata only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-ui-review
+          path: |
+            artifacts/ui-review/
+            artifacts/ci-idle.json
+          if-no-files-found: warn
+          retention-days: 7
+      # No application package upload, release, deployment or publication.

@@ -10,6 +10,8 @@
     <AssemblyName>JLVoice</AssemblyName>
     <Version>0.1.0</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ApplicationIcon>../../assets/brand/JLVoice.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup><PackageReference Include="NAudio.WinMM" Version="[2.2.1]" /></ItemGroup>
+  <ItemGroup><Content Include="../../assets/**/*"><Link>assets/%(RecursiveDir)%(Filename)%(Extension)</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content></ItemGroup>
 </Project>

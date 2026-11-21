@@ -21,5 +21,5 @@
 3. Record and evaluate Czech/English/mixed corpus with multilingual base q5_1, base q8_0 and small q5_1 on representative 8 GB hardware.
 4. Measure cold/warm startup, model residency alternatives and desktop interference; tune model/thread defaults from evidence.
 5. Add safe long-form segmentation and validate language switching, short Automatic detection, punctuation and silence handling.
-6. Complete dictionary, optional formatting/history, themes and startup behavior after the core pipeline is accepted.
+6. Brand themes and Czech/English UI are implemented; finish physical DPI/accessibility acceptance, dictionary, optional formatting/history and startup behavior after the core pipeline is accepted.
 7. Run clean-machine, offline, license and supported-app checks. Release only after every mandatory gate passes and the owner authorizes distribution.
