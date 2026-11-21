@@ -15,8 +15,8 @@ internal sealed partial class VoiceForm
         void Capture(string name)
         {
             PerformLayout(); Application.DoEvents(); Refresh();
-            using var bitmap = new Bitmap(ClientSize.Width, ClientSize.Height);
-            DrawToBitmap(bitmap, new Rectangle(Point.Empty, ClientSize)); bitmap.Save(Path.Combine(directory, name + ".png"), ImageFormat.Png);
+            using var bitmap = new Bitmap(Width, Height);
+            DrawToBitmap(bitmap, new Rectangle(Point.Empty, Size)); bitmap.Save(Path.Combine(directory, name + ".png"), ImageFormat.Png);
             void Inspect(Control control)
             {
                 if (!control.Visible) return;
@@ -39,7 +39,7 @@ internal sealed partial class VoiceForm
             if (currentPage != 1 || !preferences.Visible) issues.Add("Settings navigation failed.");
             Capture(light ? "light-settings" : "dark-settings");
         }
-        theme.SelectedIndex = 0; interfaceLanguage.SelectedIndex = 1; ClientSize = new Size(800, 580);
+        theme.SelectedIndex = 0; interfaceLanguage.SelectedIndex = 1; ClientSize = new Size(720, 480);
         overviewNav.PerformClick(); Capture("compact-english-overview"); settingsNav.PerformClick(); Capture("compact-english-settings");
         preferences.AutoScrollPosition = new Point(0, preferences.DisplayRectangle.Height); Capture("compact-english-settings-bottom");
         preferences.AutoScrollPosition = Point.Empty;

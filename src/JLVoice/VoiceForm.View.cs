@@ -72,7 +72,7 @@ internal sealed partial class VoiceForm
     {
         binding = true; uiLanguage = settings.UiLanguage;
         Text = "JL Voice"; AutoScaleDimensions = new SizeF(96, 96); AutoScaleMode = AutoScaleMode.Dpi;
-        Font = BrandFonts.Get("body", 10); ClientSize = new Size(940, 720); MinimumSize = new Size(800, 580);
+        Font = BrandFonts.Get("body", 10); ClientSize = new Size(940, 720); MinimumSize = new Size(720, 460); MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "assets", "brand", "JLVoice.ico")); tray.Icon = Icon;
 
@@ -81,7 +81,7 @@ internal sealed partial class VoiceForm
         var rail = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 22, 20, 18) };
         var brand = new Panel { Dock = DockStyle.Top, Height = 92 };
         orbit.SetBounds(8, 12, 26, 26); brand.Controls.Add(orbit);
-        var name = new Label { Text = "Voice", AutoSize = true, Font = BrandFonts.Get("display", 20), Location = new Point(62, 8) }; brand.Controls.Add(name);
+        var name = new Label { Text = "Voice", AutoSize = true, Font = BrandFonts.Get("display", 18), Location = new Point(60, 8) }; brand.Controls.Add(name);
         var owner = TextLabel("JL AUTOMATION", "JL AUTOMATION", 7.8f, "mono", true); owner.Dock = DockStyle.None; owner.Location = new Point(8, 63); brand.Controls.Add(owner);
         var navigation = Stack(); navigation.Dock = DockStyle.Top;
         overviewNav.Height = settingsNav.Height = 42; overviewNav.Margin = settingsNav.Margin = new Padding(0, 0, 8, 8);
@@ -238,6 +238,7 @@ internal sealed partial class VoiceForm
         foreach (var (control, cs, en) in captions) control.Text = T(cs, en);
         var old = language.SelectedIndex; language.Items[0] = T("Automaticky · experimentální", "Automatic · experimental"); language.SelectedIndex = old;
         old = theme.SelectedIndex; theme.Items[0] = T("Tmavý", "Dark"); theme.Items[1] = T("Světlý", "Light"); theme.Items[2] = T("Podle systému", "System"); theme.SelectedIndex = old;
+        if (WaveInEvent.DeviceCount == 0) microphone.Items[0] = T("Žádný mikrofon", "No microphone");
         foreach (var (control, cs, en) in captions) if (control is Label && control.Parent is TableLayoutPanel field && field.Controls.Count == 2) field.Controls[1].AccessibleName = T(cs, en);
         if (tray.ContextMenuStrip is { } menu) { menu.Items[0].Text = T("Otevřít JL Voice", "Open JL Voice"); menu.Items[1].Text = T("Zrušit diktování", "Cancel dictation"); menu.Items[3].Text = T("Ukončit", "Exit"); }
         UpdateSummaries(); if (!busy && capture is null) ReadyStatus(); MarkPending();
@@ -246,6 +247,7 @@ internal sealed partial class VoiceForm
     private void ApplyTheme()
     {
         colors = Palette.Resolve(SelectedTheme);
+        Application.SetColorMode(!SystemInformation.HighContrast && colors.Background.GetBrightness() < .5 ? SystemColorMode.Dark : SystemColorMode.Classic);
         void Apply(Control control, Color inherited)
         {
             control.BackColor = control is SurfaceCard ? colors.Surface : control is TextBox or ComboBox ? colors.Inset : inherited;

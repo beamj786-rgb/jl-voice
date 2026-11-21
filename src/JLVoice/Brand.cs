@@ -118,6 +118,10 @@ internal sealed class BrandButton : Button
         using var brush = new SolidBrush(fill); e.Graphics.FillPath(brush, path);
         using var pen = new Pen(Focused && ShowFocusCues ? Colors.Accent : Primary ? fill : Colors.Border, Focused && ShowFocusCues ? 2 : 1);
         e.Graphics.DrawPath(pen, path);
+        if (Selected)
+        {
+            using var active = new Pen(Colors.Accent, 2); e.Graphics.DrawLine(active, 4, 12, 4, Height - 12);
+        }
         if (Primary && Focused && ShowFocusCues)
         {
             using var ring = Shape.Round(Rectangle.Inflate(ClientRectangle, -4, -4), 5);

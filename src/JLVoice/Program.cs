@@ -8,6 +8,7 @@ internal static class Program
         if (args.Length == 2 && args[0] == "--ui-review")
         {
             ApplicationConfiguration.Initialize();
+            Application.SetColorMode(SystemColorMode.Dark);
             try
             {
                 using var form = new VoiceForm(review: true);
@@ -21,6 +22,7 @@ internal static class Program
         catch (Exception e) { MessageBox.Show(e.Message, "JL Voice diagnostics"); return; }
         Diagnostics.Mark("process_started");
         ApplicationConfiguration.Initialize();
+        Application.SetColorMode(SystemColorMode.Dark);
         using var singleton = new Mutex(true, "Local\\JLVoice.Portable", out var created);
         if (!created) return;
         try { Application.Run(new VoiceForm()); }
