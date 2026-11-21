@@ -10,6 +10,7 @@ internal sealed partial class VoiceForm
     private Palette colors = Palette.Resolve("dark");
     private string uiLanguage = "cs";
     private readonly List<(Control Control, string Cs, string En)> captions = [];
+    private readonly List<(Control Control, string Cs, string En)> fieldNames = [];
     private readonly HashSet<Control> secondaryText = [];
     private readonly List<string> modelFiles = [];
     private readonly BrandCombo model = new(), threads = new(), theme = new(), interfaceLanguage = new();
@@ -52,7 +53,8 @@ internal sealed partial class VoiceForm
     {
         var field = Stack(); field.Margin = new Padding(0, 0, 0, 8);
         var label = TextLabel(cs, en, 9, dim: true); label.Margin = new Padding(0, 0, 0, 6);
-        control.AccessibleName = T(cs, en); control.Dock = DockStyle.Top; control.Margin = Padding.Empty;
+        if (control is not CheckBox) { control.AccessibleName = T(cs, en); fieldNames.Add((control, cs, en)); }
+        control.Dock = DockStyle.Top; control.Margin = Padding.Empty;
         AddRow(field, label); AddRow(field, control); return field;
     }
     private static TableLayoutPanel Pair(Control first, Control second, float firstPercent = 50)
@@ -239,7 +241,8 @@ internal sealed partial class VoiceForm
         var old = language.SelectedIndex; language.Items[0] = T("Automaticky · experimentální", "Automatic · experimental"); language.SelectedIndex = old;
         old = theme.SelectedIndex; theme.Items[0] = T("Tmavý", "Dark"); theme.Items[1] = T("Světlý", "Light"); theme.Items[2] = T("Podle systému", "System"); theme.SelectedIndex = old;
         if (WaveInEvent.DeviceCount == 0) microphone.Items[0] = T("Žádný mikrofon", "No microphone");
-        foreach (var (control, cs, en) in captions) if (control is Label && control.Parent is TableLayoutPanel field && field.Controls.Count == 2) field.Controls[1].AccessibleName = T(cs, en);
+        foreach (var (control, cs, en) in fieldNames) control.AccessibleName = T(cs, en);
+        microphone.AccessibleName = T("Mikrofon", "Microphone"); result.AccessibleName = T("Poslední přepis", "Last transcript");
         if (tray.ContextMenuStrip is { } menu) { menu.Items[0].Text = T("Otevřít JL Voice", "Open JL Voice"); menu.Items[1].Text = T("Zrušit diktování", "Cancel dictation"); menu.Items[3].Text = T("Ukončit", "Exit"); }
         UpdateSummaries(); if (!busy && capture is null) ReadyStatus(); MarkPending();
     }
@@ -247,14 +250,17 @@ internal sealed partial class VoiceForm
     private void ApplyTheme()
     {
         colors = Palette.Resolve(SelectedTheme);
-        Application.SetColorMode(!SystemInformation.HighContrast && colors.Background.GetBrightness() < .5 ? SystemColorMode.Dark : SystemColorMode.Classic);
+        var nativeMode = !SystemInformation.HighContrast && colors.Background.GetBrightness() < .5 ? SystemColorMode.Dark : SystemColorMode.Classic;
+        var nativeModeChanged = Application.ColorMode != nativeMode;
+        Application.SetColorMode(nativeMode);
         void Apply(Control control, Color inherited)
         {
             control.BackColor = control is SurfaceCard ? colors.Surface : control is TextBox or ComboBox ? colors.Inset : inherited;
             control.ForeColor = secondaryText.Contains(control) ? colors.Dim : colors.Ink;
             if (control is SurfaceCard card) card.BorderColor = colors.Border;
             if (control is BrandButton button) button.Colors = colors;
-            if (control is BrandCombo combo) combo.Colors = colors;
+            if (control is BrandCombo combo) { combo.Colors = colors; if (nativeModeChanged) combo.RefreshNativeTheme(); }
+            if (nativeModeChanged && control is BrandCheckBox check) check.RefreshNativeTheme();
             foreach (Control child in control.Controls) Apply(child, control.BackColor);
             control.Invalidate();
         }

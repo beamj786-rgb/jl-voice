@@ -79,10 +79,14 @@ internal static class Shape
     }
 }
 
-internal sealed class SurfaceCard : Panel
+internal sealed class SurfaceCard : TableLayoutPanel
 {
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public Color BorderColor { get; set; }
-    public SurfaceCard() { DoubleBuffered = true; Padding = new Padding(20); Margin = new Padding(0, 0, 0, 16); }
+    public SurfaceCard()
+    {
+        DoubleBuffered = true; Padding = new Padding(20); Margin = new Padding(0, 0, 0, 16);
+        ColumnCount = RowCount = 1; ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); RowStyles.Add(new RowStyle(SizeType.AutoSize));
+    }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         e.Graphics.Clear(Parent?.BackColor ?? BackColor); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -141,6 +145,7 @@ internal sealed class BrandCombo : ComboBox
         DropDownStyle = ComboBoxStyle.DropDownList; FlatStyle = FlatStyle.Flat; DrawMode = DrawMode.OwnerDrawFixed;
         Font = BrandFonts.Get("body", 10); ItemHeight = 30; IntegralHeight = false; DropDownHeight = 240;
     }
+    public void RefreshNativeTheme() { if (IsHandleCreated) RecreateHandle(); }
     protected override void OnDrawItem(DrawItemEventArgs e)
     {
         var selected = (e.State & DrawItemState.Selected) != 0;
@@ -150,4 +155,9 @@ internal sealed class BrandCombo : ComboBox
                 selected ? Colors.OnAccent : Colors.Ink, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         if ((e.State & DrawItemState.Focus) != 0) e.DrawFocusRectangle();
     }
+}
+
+internal sealed class BrandCheckBox : CheckBox
+{
+    public void RefreshNativeTheme() { if (IsHandleCreated) RecreateHandle(); }
 }

@@ -23,6 +23,9 @@ internal sealed partial class VoiceForm
                 if (control is not Form && control.Parent is { } parent && parent is not ScrollableControl { AutoScroll: true } &&
                     (control.Right > parent.ClientSize.Width + 3 || control.Left < -3))
                     issues.Add($"{name}: horizontal clipping: {control.GetType().Name} '{control.Text}' ({control.Bounds}, parent {parent.ClientSize})");
+                if (control is not Form && control.Parent is { } verticalParent && verticalParent is not ScrollableControl { AutoScroll: true } &&
+                    (control.Bottom > verticalParent.ClientSize.Height + 3 || control.Top < -3))
+                    issues.Add($"{name}: vertical clipping: {control.GetType().Name} '{control.Text}' ({control.Bounds}, parent {verticalParent.ClientSize})");
                 foreach (Control child in control.Controls) Inspect(child);
             }
             Inspect(this);

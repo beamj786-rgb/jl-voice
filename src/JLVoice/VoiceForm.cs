@@ -11,7 +11,7 @@ internal sealed partial class VoiceForm : Form
     private readonly Label status = new() { AutoSize = true, Text = "Ready — Ctrl+Alt+F9" };
     private readonly TextBox result = new() { Multiline = true, ReadOnly = true, Width = 480, Height = 110, ScrollBars = ScrollBars.Vertical };
     private readonly BrandCombo language = new(), microphone = new(), key = new();
-    private readonly CheckBox push = new() { Text = "Hold selected key to record (no Ctrl+Alt)", AutoSize = true };
+    private readonly BrandCheckBox push = new() { Text = "Hold selected key to record (no Ctrl+Alt)", AutoSize = true };
     private readonly BrandButton save = new();
     private readonly System.Windows.Forms.Timer recordingTimer = new() { Interval = 100 };
     private readonly Overlay overlay = new();
