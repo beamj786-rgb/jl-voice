@@ -141,10 +141,9 @@ internal sealed partial class VoiceForm : Form
             {
                 target = WindowsInput.CaptureTarget();
                 if (target.Window == Handle) throw new InvalidOperationException(T("Zaměřte cílové textové pole.", "Focus the destination text field."));
-                result.Clear();
                 var audio = new AudioCapture(settings.Microphone); capture = audio;
                 audio.Faulted += error => PostToUi(() => { if (capture == audio) activeTask = FailCaptureAsync(audio, error); });
-                audio.Start(); EnterActiveMode(); recordingTime.Restart(); recordingTimer.Start();
+                audio.Start(); result.Clear(); EnterActiveMode(); recordingTime.Restart(); recordingTimer.Start();
                 overlay.PlaceForWindow(target.Window); overlay.SetRecording(uiLanguage); RefreshBubblePresence();
                 SetStatus(T("Nahrávám…", "Recording…")); Diagnostics.Mark("recording_started");
             }
@@ -179,7 +178,7 @@ internal sealed partial class VoiceForm : Form
     private async Task FailCaptureAsync(AudioCapture audio, Exception error)
     {
         busy = true; capture = null; recordingTimer.Stop();
-        try { await audio.StopAsync(); } catch { /* The observed device failure is shown below. */ }
+        try { await audio.StopAsync(discard: true); } catch { /* The observed device failure is shown below. */ }
         finally { audio.Dispose(); busy = false; ExitActiveMode(); }
         Notify(error.Message);
     }
@@ -188,7 +187,7 @@ internal sealed partial class VoiceForm : Form
         if (cancellation is { } job) { overlay.SetProcessing(uiLanguage, cancelling: true); job.Cancel(); return; }
         if (capture is not { } audio) return;
         busy = true; capture = null; recordingTimer.Stop();
-        try { var wav = await audio.StopAsync(); Array.Clear(wav); SetStatus(T("Zrušeno.", "Cancelled.")); overlay.SetCompleted(uiLanguage, cancelled: true); }
+        try { await audio.StopAsync(discard: true); SetStatus(T("Zrušeno.", "Cancelled.")); overlay.SetCompleted(uiLanguage, cancelled: true); }
         catch (Exception e) { Notify(e.Message); }
         finally { audio.Dispose(); busy = false; ExitActiveMode(); }
     }

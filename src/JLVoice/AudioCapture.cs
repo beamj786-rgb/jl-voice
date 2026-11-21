@@ -30,10 +30,11 @@ internal sealed class AudioCapture : IDisposable
         };
     }
     public void Start() => input.StartRecording();
-    public async Task<byte[]> StopAsync()
+    public async Task<byte[]> StopAsync(bool discard = false)
     {
         input.StopRecording();
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        if (discard) return [];
         byte[] bytes;
         lock (gate) bytes = pcm.ToArray();
         if (bytes.Length < 16000) throw new InvalidDataException("Recording is too short (minimum 0.5 seconds).");

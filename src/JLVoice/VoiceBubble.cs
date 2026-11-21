@@ -33,7 +33,7 @@ internal sealed class VoiceBubble : Form
     public VoiceBubble()
     {
         AutoScaleMode = AutoScaleMode.None;
-        FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true;
+        FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual; DoubleBuffered = true;
         AccessibleName = "JL Voice"; AccessibleRole = AccessibleRole.ToolBar;
         animation.Tick += (_, _) => { frame = (frame + 1) % 12; Invalidate(); };
@@ -83,6 +83,7 @@ internal sealed class VoiceBubble : Form
             _ => caption
         };
         hint.SetToolTip(this, AccessibleDescription); ResizeForState(); Invalidate();
+        AccessibilityNotifyClients(AccessibleEvents.Reorder, -1);
     }
     internal void SetHover(bool value)
     {
@@ -116,8 +117,17 @@ internal sealed class VoiceBubble : Form
         Size = new Size(S(logical.Width), S(logical.Height));
         Place(screen ?? Screen.FromPoint(Cursor.Position));
     }
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        // Form.TopMost makes WinForms call FocusActiveControlInternal on every Show,
+        // even with ShowWithoutActivation. Set native z-order with SWP_NOACTIVATE instead.
+        SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0010 | 0x0001 | 0x0002);
+    }
     protected override bool ShowWithoutActivation => true;
-    protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= 0x08000000 | 0x80; return p; } }
+    protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= 0x08000000 | 0x80 | 0x8; return p; } }
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == 0x21) { m.Result = (IntPtr)3; return; } // MA_NOACTIVATE, including mouse clicks.
@@ -128,7 +138,7 @@ internal sealed class VoiceBubble : Form
             OnBubbleClick(this, new MouseEventArgs(m.Msg == 0x205 ? MouseButtons.Right : MouseButtons.Left, 1, (short)position, (short)(position >> 16), 0));
             m.Result = IntPtr.Zero; return;
         }
-        if (m.Msg is 0x7E or 0x1A) Place(screen ?? Screen.FromPoint(Cursor.Position));
+        if (m.Msg is 0x7E or 0x1A) Place(Screen.FromHandle(WindowsInput.GetForegroundWindow()));
         base.WndProc(ref m);
     }
     protected override void OnDpiChanged(DpiChangedEventArgs e) { base.OnDpiChanged(e); ResizeForState(); }
@@ -151,6 +161,10 @@ internal sealed class VoiceBubble : Form
         }
         if (e.Button != MouseButtons.Left) return;
         var right = e.X >= Width - S(46);
+        InvokeAction(right);
+    }
+    private void InvokeAction(bool right)
+    {
         if (activity is BubbleActivity.Recording or BubbleActivity.Processing)
         {
             if (right) CancelRequested?.Invoke();
@@ -163,6 +177,36 @@ internal sealed class VoiceBubble : Form
         else if (activity is BubbleActivity.Success or BubbleActivity.Cancelled) DetailsRequested?.Invoke();
         else if (hovered && right) SettingsRequested?.Invoke();
         else RecordRequested?.Invoke();
+    }
+    protected override AccessibleObject CreateAccessibilityInstance() => new BubbleAccessibility(this);
+    private sealed class BubbleAccessibility : ControlAccessibleObject
+    {
+        private readonly VoiceBubble bubble;
+        private readonly BubbleAction left, right;
+        public BubbleAccessibility(VoiceBubble owner) : base(owner) { bubble = owner; left = new BubbleAction(owner, this, false); right = new BubbleAction(owner, this, true); }
+        public override AccessibleRole Role => AccessibleRole.ToolBar;
+        public override int GetChildCount() => bubble.activity == BubbleActivity.Processing ? 1 : bubble.activity is BubbleActivity.Recording or BubbleActivity.Error || bubble.hovered ? 2 : 1;
+        public override AccessibleObject? GetChild(int index) => index < 0 || index >= GetChildCount() ? null : bubble.activity == BubbleActivity.Processing || index == 1 ? right : left;
+    }
+    private sealed class BubbleAction(VoiceBubble bubble, AccessibleObject parent, bool right) : AccessibleObject
+    {
+        public override AccessibleObject Parent => parent;
+        public override AccessibleRole Role => AccessibleRole.PushButton;
+        public override AccessibleStates State => bubble.Visible ? AccessibleStates.None : AccessibleStates.Invisible;
+        public override Rectangle Bounds => bubble.RectangleToScreen(right ? new Rectangle(bubble.Width - bubble.S(46), 0, bubble.S(46), bubble.Height) : new Rectangle(0, 0, bubble.Width - (bubble.hovered || bubble.activity is BubbleActivity.Recording or BubbleActivity.Error ? bubble.S(46) : 0), bubble.Height));
+        public override string? Name
+        {
+            get => right ? bubble.activity == BubbleActivity.Idle ? bubble.T("Nastavení", "Settings") : bubble.activity == BubbleActivity.Error ? bubble.T("Zavřít upozornění", "Dismiss message") : bubble.T("Zrušit diktování", "Cancel dictation")
+                : bubble.activity == BubbleActivity.Idle ? bubble.T("Spustit diktování", "Start dictation") : bubble.activity == BubbleActivity.Recording ? bubble.T("Ukončit nahrávání", "Stop recording") : bubble.T("Otevřít poslední přepis", "Open last transcript");
+            set { }
+        }
+        public override string DefaultAction => bubble.T("Stisknout", "Press");
+        public override void DoDefaultAction()
+        {
+            if (!bubble.Visible || bubble.IsDisposed) return;
+            if (bubble.InvokeRequired) bubble.BeginInvoke(() => { if (!bubble.IsDisposed) bubble.InvokeAction(right); });
+            else bubble.InvokeAction(right);
+        }
     }
     protected override void OnPaint(PaintEventArgs e)
     {

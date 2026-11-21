@@ -66,6 +66,8 @@ internal sealed partial class VoiceForm
         var point = (IntPtr)((bubble.Height / 2 << 16) | 24);
         SendMessage(bubble.Handle, 0x201, (IntPtr)1, point); SendMessage(bubble.Handle, 0x202, IntPtr.Zero, point);
         if (recordIntents != 1 || WindowsInput.CaptureTarget() != original) issues.Add("Bubble record click stole focus or did not emit its intent.");
+        bubble.AccessibilityObject.GetChild(0)?.DoDefaultAction();
+        if (recordIntents != 2 || WindowsInput.CaptureTarget() != original) issues.Add("Accessible bubble action failed or stole focus.");
         bubble.SetHover(true); Application.DoEvents();
         if (bubble.AnimationRunning || bubble.TransientRunning || WindowsInput.CaptureTarget() != original) issues.Add("Hover activated timers or stole focus.");
         var area = Screen.FromHandle(probe.Handle).WorkingArea;
