@@ -1,0 +1,43 @@
+name: Development build checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-cpu-package:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.404'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Developer benchmark dependencies
+        run: python -m pip install -r benchmarks/requirements.txt
+      - name: Build self-contained CPU package (not a release)
+        shell: pwsh
+        run: ./scripts/package.ps1
+      - name: Scoring and native audio boundary checks
+        shell: pwsh
+        run: |
+          $env:JL_VOICE_WORKER = "$pwd/artifacts/JLVoice/runtime/JLVoiceAsr.exe"
+          python -m unittest discover -s benchmarks -v
+      - name: Public English fixture through real CPU worker
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "$pwd/benchmarks"
+          @'
+          from pathlib import Path
+          from run import run_sample
+          result = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve(), Path('vendor/whisper.cpp/samples/jfk.wav').resolve(), 'en', 2)
+          assert 'country' in result['text'].lower()
+          print('Public English fixture passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
+          '@ | python -
+      - name: Windows tray startup and idle monitor smoke test
+        run: python benchmarks/app.py --app artifacts/JLVoice/JLVoice.exe --seconds 12 --scenario idle --output artifacts/ci-idle.json
+      # No package upload, release, deployment or publication in this workflow.

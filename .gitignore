@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+artifacts/
+vendor/
+models/*.bin
+benchmarks/audio/
+benchmarks/results/
+settings.json
+*.wav
+*.user
+__pycache__/

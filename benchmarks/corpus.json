@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "samples": [
+    { "id":"cs-short", "language":"cs", "audio":"audio/cs-short.wav", "reference":"Příští schůzka začíná ve čtvrtek v půl třetí." },
+    { "id":"cs-natural", "language":"cs", "audio":"audio/cs-natural.wav", "reference":"Ahoj, potřeboval bych přesunout zítřejší schůzku. Můžeš mi prosím poslat nový termín?" },
+    { "id":"cs-diacritics", "language":"cs", "audio":"audio/cs-diacritics.wav", "reference":"Řešení příliš žluťoučkého koně není jednoduché, protože všechny údaje musí zůstat přesné." },
+    { "id":"en-short", "language":"en", "audio":"audio/en-short.wav", "reference":"Please move the meeting to Thursday afternoon." },
+    { "id":"en-natural", "language":"en", "audio":"audio/en-natural.wav", "reference":"I would like to finish this report today. Could you send me the latest figures, please?" },
+    { "id":"en-technical", "language":"en", "audio":"audio/en-technical.wav", "reference":"Open Visual Studio Code and check the TypeScript build in the GitHub repository." },
+    { "id":"mixed-cs-en", "language":"mixed", "audio":"audio/mixed-cs-en.wav", "reference":"Otevři Visual Studio Code, spusť npm run build a zkontroluj pull request na GitHubu." },
+    { "id":"mixed-switch", "language":"mixed", "audio":"audio/mixed-switch.wav", "reference":"Nejdřív opravíme přihlášení. Then we will deploy the update. Nakonec otestujeme nové API." },
+    { "id":"mixed-names", "language":"mixed", "audio":"audio/mixed-names.wav", "reference":"V aplikaci ChatGPT porovnej React a Python. Please keep the product names unchanged." },
+    { "id":"silence", "language":"silence", "audio":"audio/silence.wav", "reference":"" }
+  ]
+}
