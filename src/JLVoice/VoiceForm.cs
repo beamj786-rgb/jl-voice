@@ -19,7 +19,8 @@ internal sealed class VoiceForm : Form
     private readonly Overlay overlay = new();
     private AudioCapture? capture;
     private bool busy, closing, keyHeld;
-    private IntPtr target, hook;
+    private WindowsInput.Target target;
+    private IntPtr hook;
     private WindowsInput.Hook? hookCallback;
     private CancellationTokenSource? cancellation;
     private readonly Stopwatch recordingTime = new();
@@ -110,8 +111,8 @@ internal sealed class VoiceForm : Form
         {
             try
             {
-                target = WindowsInput.GetForegroundWindow();
-                if (target == Handle) throw new InvalidOperationException("Focus the destination text field before recording.");
+                target = WindowsInput.CaptureTarget();
+                if (target.Window == Handle) throw new InvalidOperationException("Focus the destination text field before recording.");
                 result.Clear(); capture = new AudioCapture(settings.Microphone); capture.Start();
                 save.Enabled = false; recordingTime.Restart(); recordingTimer.Start(); overlay.SetStatus("Recording"); overlay.Show(); status.Text = "Recording";
                 Diagnostics.Mark("recording_started");

@@ -72,7 +72,7 @@ def main():
             args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
         finally:
             # Owned process only; WM_CLOSE allows normal worker/audio cleanup first.
-            callback = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+            callback = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
             def close_window(hwnd, _):
                 pid = ctypes.c_ulong()
                 ctypes.windll.user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
@@ -81,7 +81,9 @@ def main():
             ctypes.windll.user32.EnumWindows(callback(close_window), 0)
             try: p.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                for child in owned.children(recursive=True): child.kill()
+                for child in owned.children(recursive=True):
+                    try: child.kill()
+                    except psutil.NoSuchProcess: pass
                 p.kill(); p.wait()
 
 if __name__ == '__main__':
