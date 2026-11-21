@@ -2,16 +2,15 @@
 
 ## Selected development approach
 
-The preview uses .NET 10 Windows Forms with native Windows APIs and NAudio.WinMM capture, plus a small native `JLVoiceAsr` process using whisper.cpp's C API. Self-contained folder publishing bundles the .NET runtime. No browser engine, Python runtime, service, account or local LLM is part of the end-user application.
+The preview uses .NET 10 WPF/XAML with native Windows APIs and NAudio.WinMM capture, plus a small native `JLVoiceAsr` process using whisper.cpp's C API. Self-contained folder publishing bundles the .NET runtime. The UI has no Windows Forms dependency, browser engine, Python runtime, account or local LLM. Tray integration uses `Shell_NotifyIcon` on the WPF window's message loop.
 
-Considered alternatives:
+The owner selected WPF for a custom minimalist Windows interface. It replaces the provisional Windows Forms UI; audio capture, ASR, settings format, hotkeys and insertion interop retain their existing owners. Tauri was considered but would add WebView2 and a different UI/backend boundary. No framework choice establishes low-end acceptance.
 
-1. Rust / native Win32 / whisper.cpp: leaner potential runtime distribution and direct lifecycle control, but more initial Windows UI/audio interop work and no measured memory advantage for this project yet.
-2. Windows Forms / NAudio / whisper.cpp: native controls, maintainable capture cleanup and straightforward self-contained distribution. Runtime size and GC cost must be measured on the primary target. Selected provisionally to obtain a real capture-to-insertion pipeline without a web renderer; this is not proof it meets the memory target.
+`RenderOptions.ProcessRenderMode = SoftwareOnly` avoids a GPU rendering context for this small utility. The transparent bubble is a small WPF layered window; processing feedback uses a bounded 100 ms timer only when Windows client animations are enabled. Idle uses neither that timer nor capture/model work. Measure CPU rendering, memory and desktop responsiveness on representative hardware before changing this policy or claiming minimum support.
 
 ## Ownership
 
-`VoiceForm` serializes recording/transcription on the UI thread; `AudioCapture` owns the live microphone and bounded PCM buffer; `AsrEngine` owns exactly one below-normal worker; `Settings` owns portable configuration; `WindowsInput` owns hotkeys/Unicode dispatch; the nonactivating `Overlay` reports state. `Diagnostics` only records phase timestamps after an explicit `--diagnostics NEW_FILE` invocation.
+`MainWindow` serializes recording/transcription on the UI thread; `AudioCapture` owns the live microphone and bounded PCM buffer; `AsrEngine` owns exactly one below-normal worker; `Settings` owns portable configuration; `WindowsInput` owns hotkeys/Unicode dispatch; the nonactivating `VoiceBubble` projects controller state. Its idle capsule has no active timer, capture or inference. Only recording updates the RMS meter; processing and transient feedback own bounded timers. Window close/minimize hides to the tray; explicit Exit cancels and awaits owned work. WPF `ShowActivated=false`, nonfocusable bubble buttons, native no-activation styles and z-order preserve the destination focus. `Diagnostics` only records phase timestamps after an explicit `--diagnostics NEW_FILE` invocation.
 
 The worker receives an in-memory WAV through stdin, validates mono 16 kHz 16-bit PCM and the 0.5–90 second duration bound, sets `use_gpu=false`, refuses English-only models and accepts only 1–2 threads. Package builds disable OpenMP and BLAS; CPU backend variants use upstream runtime dispatch instead of build-machine-native optimization. The worker exits after every dictation. Cancellation kills only the owned process tree; exit awaits current work before disposing the tray.
 

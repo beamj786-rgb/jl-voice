@@ -10,6 +10,7 @@ The user's low-end-first requirements take precedence over earlier master-prompt
 - No release until representative 8 GB hardware, both languages, mixed speech, offline portable operation, resource consumption and insertion latency have passed acceptance. Do not publish releases or deploy without explicit owner approval.
 - Reverse-engineer read-only within the master prompt boundaries. Do not copy code from the community teardown (no root license observed). Do not copy proprietary source/assets or inspect private credentials/content.
 - Honor cancellation and cleanup; do not insert into a changed foreground window. Do not persist raw audio/transcripts without explicit opt-in. Preserve clipboard contents.
+- The owner selected WPF/XAML for the Windows interface. Keep tray integration native and the bubble nonactivating. Preserve the offline capture/CPU-worker boundaries when changing the UI.
 - Verify changes with `dotnet build ...`, self-contained Windows publish and relevant benchmark unit tests. Windows runtime testing remains separate. Do not introduce Electron or an always-loaded model without measured justification.
 
 Living requirement owner: `docs/REQUIREMENTS.md`. Known gaps: `docs/KNOWN_ISSUES.md`. Do not turn an unmeasured model candidate into a release default.
