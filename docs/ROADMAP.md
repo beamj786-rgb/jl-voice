@@ -6,16 +6,17 @@
 - Windows-targeted build and self-contained application publish on Linux.
 - WER scoring unit tests and Python syntax checks.
 - Native CPU worker builds on Linux; ten scoring/boundary tests pass and the public upstream English fixture transcribes through the real adapter. This does not qualify Czech, mixed speech, Windows or low-end hardware.
+- Hosted Windows CI at `af26d57` passes CPU package creation, ten tests, public English inference and tray startup/idle-monitor smoke testing. The runner does not qualify a clean offline Windows 11 machine or representative 8 GB hardware.
 
 ## Implemented, awaiting Windows/runtime validation
 
 - Tray, overlay, hotkeys, microphone selection/capture, bounded PCM pipeline, CPU ASR adapter and foreground-checked Unicode input.
-- CPU native packaging script, process cleanup, cancellation, portable settings and opt-in timing diagnostics.
+- CPU native packaging passes hosted Windows CI; actual microphone/process cleanup, cancellation and portable-setting recovery still require target-machine validation. Opt-in timing diagnostics and idle monitor pass a hosted startup smoke test.
 - ASR corpus runner and full-app resource monitor.
 
 ## Next work requiring real evidence
 
-1. Build the full CPU package on Windows; run microphone-to-Notepad dictation offline.
+1. Run the CI-buildable full CPU package on a real Windows 11 machine; verify microphone-to-Notepad dictation offline.
 2. Correct focus/control targeting and verify rapid hotkey/cancel/disconnect/shutdown paths.
 3. Record and evaluate Czech/English/mixed corpus with multilingual base q5_1, base q8_0 and small q5_1 on representative 8 GB hardware.
 4. Measure cold/warm startup, model residency alternatives and desktop interference; tune model/thread defaults from evidence.

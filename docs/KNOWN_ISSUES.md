@@ -1,7 +1,7 @@
 # Known gaps and limitations
 
-- No Windows runtime, real microphone, low-end physical hardware or actual language-quality acceptance has run. Windows-targeted compilation is the current proof boundary.
-- No complete portable runtime/model package has been executed on a clean offline Windows machine. The native Windows packaging script needs validation.
+- Hosted Windows CI passes native CPU package creation, ten tests, public-English-fixture inference and tray startup. No real microphone, low-end physical hardware or representative language-quality acceptance has run.
+- No complete portable runtime/model package has been executed on a clean offline Windows 11 machine. The packaging script passes on a developer-tool-equipped hosted Windows runner; that does not prove clean-machine acceptance.
 - Base q5_1 is an unaccepted experimental candidate. Czech, English, punctuation, silence hallucinations and mixed-language accuracy are unknown. Single-recording language switching is not specifically implemented.
 - Recording is bounded to 90 seconds, not arbitrary long-form dictation. Safe chunking and switch-aware processing remain needed.
 - Worker-per-recording unloads the model but adds startup latency. Resident model trade-off has not been measured.
@@ -12,3 +12,4 @@
 - No default history, model prewarming, persistent worker, cloud fallback or LLM. No grammar/postprocessing quality claims.
 - Full-app monitor supplies sampled working-set/CPU and input-dispatch timings; OS peak metrics, verified insertion, cold-cache control and desktop responsiveness require additional evidence.
 - No signed executable, completed redistribution audit, production release, or benchmark-qualified minimum system requirements.
+- Upstream MSVC builds emit warnings, including pointer/bool conversions in ggml backward-gradient helpers and ignored GCC pragmas. Source inspection places the reported conversion sites in gradient-building code; the inference smoke test passes, but this is not a comprehensive upstream warning audit. Review before release; no upstream patch is carried.

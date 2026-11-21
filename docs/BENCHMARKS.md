@@ -4,6 +4,8 @@
 
 The Windows-targeted application builds and a self-contained win-x64 publish was produced on Linux during bootstrap. Ten tests pass: five scoring checks (edit counts, silence insertions, Czech diacritics, canonical Unicode, case/punctuation normalization) and five native input-boundary checks. The native CPU worker also builds on Linux and transcribes upstream's public 11-second `samples/jfk.wav` with the pinned multilingual base q5_1 model, through the real stdin/stdout adapter. This is a narrow English fixture smoke test, **not representative language quality, Windows runtime acceptance or minimum-hardware qualification**.
 
+On 2026-11-21, [Windows hosted CI run 44950062466](https://github.com/beamj786-rgb/jl-voice/actions/runs/44950062466), source commit `af26d579be24d92dcd45f804241996207d457cb9`, passed the complete CPU package build, all ten scoring/native tests, actual CPU transcription of the public English fixture, and the 12-second tray startup/idle-monitor smoke test. This verifies native Windows build/runtime plumbing on the hosted runner. It does not test microphone recording, text insertion, network-disabled execution, Czech/mixed quality, Windows 11 target-device behavior, cold/warm performance, or representative 8 GB hardware. CI did not upload or publish a distributable package or performance report.
+
 All representative Czech/English/mixed WER, target-device RTF, app latency, memory, idle CPU, cold/warm startup and desktop-interference values are **unmeasured**. No representative 8 GB system is available in the current environment. Model residency comparisons and optional GPU measurements are also outstanding. Do not fill missing values with estimates.
 
 ## Reproducible ASR runs
