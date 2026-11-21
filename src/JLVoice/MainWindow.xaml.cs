@@ -124,9 +124,10 @@ public partial class MainWindow : Window
     {
         locale = UiLanguage.SelectedIndex == 1 ? "en" : "cs";
         NavigationButton.Content = preferencesOpen ? T("Zpět", "Back") : T("Nastavení", "Settings");
-        DictationLanguage.ItemsSource = new[] { T("Automaticky · experimentální", "Automatic · experimental"), "Čeština", "English" };
+        DictationLanguage.ItemsSource = new[] { T("Automaticky", "Automatic"), "Čeština", "English" };
         // Preserve selection while replacing translated labels.
         DictationLanguage.SelectedIndex = languageSelection;
+        DictationLanguage.ToolTip = T("Automatická detekce je experimentální, zejména u krátkých a smíšených nahrávek.", "Automatic detection is experimental, especially for short and mixed-language recordings.");
         Theme.ItemsSource = new[] { T("Tmavý", "Dark"), T("Světlý", "Light"), T("Podle systému", "System") }; Theme.SelectedIndex = themeSelection;
         LanguageLabel.Text = T("Jazyk diktování", "Dictation language"); MicrophoneLabel.Text = T("Mikrofon", "Microphone");
         KeyLabel.Text = T("Klávesa", "Shortcut key"); ThemeLabel.Text = T("Vzhled", "Appearance"); UiLanguageLabel.Text = T("Jazyk rozhraní", "Interface language");

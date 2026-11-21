@@ -94,6 +94,7 @@ public partial class VoiceBubble : Window
             _ => "M8,3 L8,12 M8,16 L8,17"
         };
         Glyph.Data = Geometry.Parse(path); Glyph.Stretch = Stretch.Uniform;
+        Glyph.Width = state == BubbleActivity.Recording ? 10 : 18; Glyph.Height = state == BubbleActivity.Recording ? 10 : 22;
         if (state == BubbleActivity.Recording) Glyph.SetResourceReference(Shape.FillProperty, "AccentBrush");
         BubbleCaption.Text = state switch { BubbleActivity.Idle => "··", BubbleActivity.Success => T("Hotovo", "Done"), BubbleActivity.Cancelled => T("Zrušeno", "Cancelled"), _ => "" };
         Elapsed.Text = "0 s";

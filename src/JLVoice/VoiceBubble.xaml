@@ -1,10 +1,10 @@
 <Window x:Class="JLVoice.VoiceBubble" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="JL Voice bubble" Width="84" Height="34" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
+        Title="JL Voice bubble" Width="84" Height="34" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" Foreground="{DynamicResource InkBrush}"
         ShowActivated="False" ShowInTaskbar="False" Topmost="True" Focusable="False" UseLayoutRounding="True" MouseEnter="EnterBubble" MouseLeave="LeaveBubble">
   <Border x:Name="Capsule" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="24">
     <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="42"/></Grid.ColumnDefinitions>
-      <Button x:Name="MainAction" Grid.ColumnSpan="2" Focusable="False" Padding="14,0" Click="MainClick" HorizontalContentAlignment="Stretch">
+      <Button x:Name="MainAction" Opacity="1" Grid.ColumnSpan="2" Focusable="False" Padding="14,0" Click="MainClick" HorizontalContentAlignment="Stretch">
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition Width="27"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Path x:Name="Glyph" Data="M8,2 C5,2 5,4 5,7 L5,10 C5,14 11,14 11,10 L11,7 C11,3 11,2 8,2 M2,9 L2,11 C2,19 14,19 14,11 L14,9 M8,17 L8,21 M5,21 L11,21" Stroke="{DynamicResource InkBrush}" StrokeThickness="1.5" Width="18" Height="22" Stretch="Uniform" VerticalAlignment="Center"/>

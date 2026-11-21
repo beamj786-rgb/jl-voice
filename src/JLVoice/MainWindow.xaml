@@ -17,7 +17,7 @@
           <Image x:Name="Orbit" Width="23" Height="23" Margin="0,3,16,0" VerticalAlignment="Top"/>
           <TextBlock Text="JL Voice" FontFamily="{DynamicResource DisplayFont}" FontWeight="Light" FontSize="26"/>
         </StackPanel>
-        <Button x:Name="NavigationButton" HorizontalAlignment="Right" VerticalAlignment="Top" Click="NavigateClick"/>
+        <Button x:Name="NavigationButton" Width="110" Height="38" HorizontalAlignment="Right" VerticalAlignment="Top" Click="NavigateClick"/>
         <ScrollViewer x:Name="PageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,4,4,0">
           <Grid>
             <StackPanel x:Name="Overview">
