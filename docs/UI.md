@@ -34,3 +34,21 @@ The implementation keeps Windows Forms/native controls and a small set of GDI dr
 On Windows, run `JLVoice.exe --ui-review NEW_OUTPUT_DIRECTORY` on a development build to produce native `DrawToBitmap` screenshots, font-loading checks, compact viewport checks, navigation checks and a JSON layout report. This mode does not record audio, run ASR, register hotkeys, save settings or read user transcripts. Its overlay image is explicitly labelled as a UI test fixture.
 
 CI uploads only these review screenshots and developer measurement metadata, not an application release. A native render check is not proof of physical DPI, assistive technology or target-application input behavior. Final visual review must inspect the actual generated images before claiming the redesign is verified.
+
+## Verified review — 2026-11-21
+
+[Windows CI run 44953296127](https://github.com/beamj786-rgb/jl-voice/actions/runs/44953296127), source commit `d9467e0998c47d2561d1cea17cd9f64668e891d6`, passed self-contained package creation, all ten scoring/native boundary tests, the public English CPU fixture, tray startup/idle monitoring and native UI review. All eight generated images were visually inspected after the final changes.
+
+The [render report](ui-review/review.json) confirms all three bundled fonts loaded and no horizontal or vertical child clipping in seven page/viewport states: Czech dark/light overview and settings at 940 × 720 client size, plus English compact overview/settings/top-and-bottom at 720 × 480. Images include the OS window frame, so their outer dimensions are larger than the client viewport. Native control handles refresh when the palette changes, and cards use content-driven table layout to preserve all fields in a narrow viewport.
+
+The screenshots show the actual hosted runner's state: it has no microphone attached. The overlay screenshot is an explicitly labelled rendering fixture, not a recording.
+
+| Dark overview | Light overview |
+|---|---|
+| ![Native dark overview](ui-review/dark-overview.png) | ![Native light overview](ui-review/light-overview.png) |
+
+[Dark settings](ui-review/dark-settings.png) · [Light settings](ui-review/light-settings.png) · [Compact settings, top](ui-review/compact-english-settings.png) · [Compact settings, bottom](ui-review/compact-english-settings-bottom.png).
+
+The [raw idle probe](ui-review/idle-ci.json) was collected on Windows Server 2025, four logical CPUs and approximately 16 GB RAM, for 12 seconds, with no loaded model. The measured steady sampled working set was 67.85 MiB, sampled peak 69.16 MiB, launch-to-ready about 867 ms, and no CPU time was observed in the steady sampling window. Sampling, cache state and short-run limitations are preserved in the report. These values are hosted-CI observations, **not 8 GB hardware qualification or a responsiveness guarantee**.
+
+Still unverified: real Windows 11 target hardware, 150/200% physical DPI and monitor transitions, high-contrast and screen-reader acceptance, complete keyboard-only workflows, microphone-to-target insertion and the mandatory Czech/English/mixed-language acceptance suite. No application release has been published.

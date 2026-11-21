@@ -19,6 +19,10 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 - Portable settings, pinned model download hashes, Windows packaging script and developer benchmark tools.
 - JL Automation native UI: bundled Funnel Display / Funnel Sans / Geist Mono, original Orbit assets, dark/light/system themes, Czech/English interface, overview and settings pages. See [UI design and review](docs/UI.md).
 
+![JL Voice native overview on Windows CI](docs/ui-review/dark-overview.png)
+
+Native UI checks pass at `d9467e0`: bundled fonts, theme switching and seven viewport/page states, including 720 × 480. The screenshot is from a hosted Windows runner without a microphone. [Light theme and settings screenshots](docs/UI.md#verified-review--2026-11-21).
+
 Automatic mode currently uses upstream language detection for the recording, **not verified language switching within one recording**. No candidate model has passed Czech/English quality acceptance; the small quantized base model is an experiment, not an accuracy claim.
 
 ## Developer build

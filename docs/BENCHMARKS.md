@@ -6,7 +6,9 @@ The Windows-targeted application builds and a self-contained win-x64 publish was
 
 On 2026-11-21, [Windows hosted CI run 44950062466](https://github.com/beamj786-rgb/jl-voice/actions/runs/44950062466), source commit `af26d579be24d92dcd45f804241996207d457cb9`, passed the complete CPU package build, all ten scoring/native tests, actual CPU transcription of the public English fixture, and the 12-second tray startup/idle-monitor smoke test. This verifies native Windows build/runtime plumbing on the hosted runner. It does not test microphone recording, text insertion, network-disabled execution, Czech/mixed quality, Windows 11 target-device behavior, cold/warm performance, or representative 8 GB hardware. CI did not upload or publish a distributable package or performance report.
 
-All representative Czech/English/mixed WER, target-device RTF, app latency, memory, idle CPU, cold/warm startup and desktop-interference values are **unmeasured**. No representative 8 GB system is available in the current environment. Model residency comparisons and optional GPU measurements are also outstanding. Do not fill missing values with estimates.
+All primary-target Czech/English/mixed WER, RTF, app latency, memory, idle CPU, cold/warm startup and desktop-interference values are **unmeasured**. No representative 8 GB system is available in the current environment. Model residency comparisons and optional GPU measurements are also outstanding. Do not fill missing values with estimates.
+
+The branded UI has a separate [hosted Windows CI idle probe and provenance](UI.md#verified-review--2026-11-21), with the [raw samples](ui-review/idle-ci.json). This 16 GB Server 2025 runner observation is not primary-target acceptance and includes no active speech or desktop-workload measurements.
 
 ## Reproducible ASR runs
 

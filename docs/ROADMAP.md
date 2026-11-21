@@ -7,6 +7,7 @@
 - WER scoring unit tests and Python syntax checks.
 - Native CPU worker builds on Linux; ten scoring/boundary tests pass and the public upstream English fixture transcribes through the real adapter. This does not qualify Czech, mixed speech, Windows or low-end hardware.
 - Hosted Windows CI at `af26d57` passes CPU package creation, ten tests, public English inference and tray startup/idle-monitor smoke testing. The runner does not qualify a clean offline Windows 11 machine or representative 8 GB hardware.
+- Branded UI at `d9467e0` passes hosted Windows font loading, native theme switches and horizontal/vertical layout checks, including a 720 × 480 compact viewport. Final native screenshots were visually reviewed; evidence is in `docs/ui-review` and `docs/UI.md`.
 
 ## Implemented, awaiting Windows/runtime validation
 
