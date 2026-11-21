@@ -8,6 +8,8 @@ internal static class Diagnostics
 {
     private static readonly Stopwatch clock = Stopwatch.StartNew();
     private static string? destination;
+    public static bool Enabled => destination is not null;
+    public const int ExitProbeMessage = 0x805A;
     public static void Configure(string[] args)
     {
         if (args.Length == 0) return;

@@ -71,12 +71,12 @@ def main():
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
         finally:
-            # Owned process only; WM_CLOSE allows normal worker/audio cleanup first.
+            # Owned process only; The opt-in diagnostic message requests normal worker/audio cleanup.
             callback = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
             def close_window(hwnd, _):
                 pid = ctypes.c_ulong()
                 ctypes.windll.user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(pid))
-                if pid.value == p.pid: ctypes.windll.user32.PostMessageW(ctypes.c_void_p(hwnd), 0x10, 0, 0)
+                if pid.value == p.pid: ctypes.windll.user32.PostMessageW(ctypes.c_void_p(hwnd), 0x805A, 0, 0)
                 return True
             ctypes.windll.user32.EnumWindows(callback(close_window), 0)
             try: p.wait(timeout=10)

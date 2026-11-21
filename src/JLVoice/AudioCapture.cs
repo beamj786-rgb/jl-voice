@@ -10,6 +10,9 @@ internal sealed class AudioCapture : IDisposable
     private readonly TaskCompletionSource stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object gate = new();
     private bool disposed;
+    private float level;
+    public float Level => Volatile.Read(ref level);
+    public event Action<Exception>? Faulted;
     public const int MaxSeconds = 90;
     private const int MaxBytes = 16000 * 2 * MaxSeconds;
     public AudioCapture(int device)
@@ -17,11 +20,12 @@ internal sealed class AudioCapture : IDisposable
         input = new WaveInEvent { DeviceNumber = device, WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = 50 };
         input.DataAvailable += (_, e) =>
         {
+            Volatile.Write(ref level, PcmLevel.Rms(e.Buffer.AsSpan(0, e.BytesRecorded)));
             lock (gate) pcm.Write(e.Buffer, 0, Math.Min(e.BytesRecorded, MaxBytes - (int)pcm.Length));
         };
         input.RecordingStopped += (_, e) =>
         {
-            if (e.Exception is not null) stopped.TrySetException(e.Exception);
+            if (e.Exception is not null) { stopped.TrySetException(e.Exception); Faulted?.Invoke(e.Exception); }
             else stopped.TrySetResult();
         };
     }
@@ -42,6 +46,7 @@ internal sealed class AudioCapture : IDisposable
     {
         if (disposed) return;
         input.Dispose();
+        Volatile.Write(ref level, 0);
         lock (gate)
         {
             if (pcm.TryGetBuffer(out var buffer)) Array.Clear(buffer.Array!, buffer.Offset, buffer.Count);

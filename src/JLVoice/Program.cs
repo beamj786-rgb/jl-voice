@@ -12,7 +12,7 @@ internal static class Program
             try
             {
                 using var form = new VoiceForm(review: true);
-                form.Show(); Application.DoEvents(); form.ExportUiReview(args[1]); form.Close();
+                form.Show(); Application.DoEvents(); form.ExportUiReview(args[1]); form.ExitApplication(); Application.DoEvents();
             }
             catch (Exception e) { Console.Error.WriteLine(e.ToString()); Environment.ExitCode = 1; }
             finally { BrandFonts.Shutdown(); }

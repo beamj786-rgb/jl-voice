@@ -12,6 +12,7 @@ public sealed record Settings
     public int Key { get; init; } = 0x78; // F9; toggle also requires Ctrl+Alt.
     public string Theme { get; init; } = "dark";
     public string UiLanguage { get; init; } = "cs";
+    public bool ShowIdleBubble { get; init; } = true;
     private static string Path => System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");
 
     public static Settings Load()

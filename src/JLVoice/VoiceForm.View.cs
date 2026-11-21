@@ -9,281 +9,212 @@ internal sealed partial class VoiceForm
     private readonly bool reviewMode;
     private Palette colors = Palette.Resolve("dark");
     private string uiLanguage = "cs";
-    private readonly List<(Control Control, string Cs, string En)> captions = [];
-    private readonly List<(Control Control, string Cs, string En)> fieldNames = [];
+    private readonly List<(Control Control, string Cs, string En)> captions = [], fieldNames = [];
     private readonly HashSet<Control> secondaryText = [];
     private readonly List<string> modelFiles = [];
     private readonly BrandCombo model = new(), threads = new(), theme = new(), interfaceLanguage = new();
     private readonly Panel overview = new(), preferences = new();
-    private readonly BrandButton overviewNav = new(), settingsNav = new(), copy = new(), clear = new();
-    private readonly Label shortcut = new(), microphoneState = new(), languageSummary = new(), microphoneSummary = new(), emptyResult = new();
-    private readonly Label pending = new();
+    private readonly BrandButton back = new(), settingsButton = new(), copy = new(), clear = new(), advancedToggle = new();
+    private readonly Label shortcut = new(), microphoneState = new(), languageSummary = new(), emptyResult = new(), pending = new();
+    private readonly TableLayoutPanel lastResult = Stack(), advanced = Stack();
     private readonly PictureBox orbit = new() { SizeMode = PictureBoxSizeMode.Zoom };
     private readonly Dictionary<string, Image> brandImages = [];
     private readonly ToolTip hints = new() { AutoPopDelay = 8000 };
-    private bool binding;
+    private ToolStripMenuItem? bubbleMenu;
+    private bool binding, advancedOpen;
     private int currentPage;
     private string T(string cs, string en) => uiLanguage == "cs" ? cs : en;
-
     private Label TextLabel(string cs, string en, float size = 10, string role = "body", bool dim = false)
     {
         var label = new Label { AutoSize = true, Dock = DockStyle.Top, Font = BrandFonts.Get(role, size), Margin = new Padding(0, 0, 0, 8) };
         Bind(label, cs, en); if (dim) secondaryText.Add(label); return label;
     }
-    private void Bind(Control control, string cs, string en)
-    {
-        captions.Add((control, cs, en)); control.Text = T(cs, en);
-    }
+    private void Bind(Control control, string cs, string en) { captions.Add((control, cs, en)); control.Text = T(cs, en); }
     private static TableLayoutPanel Stack()
     {
-        var panel = new TableLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Top, ColumnCount = 1, Margin = Padding.Empty };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); return panel;
+        var p = new TableLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Top, ColumnCount = 1, Margin = Padding.Empty };
+        p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); return p;
     }
-    private static void AddRow(TableLayoutPanel panel, Control control)
+    private static void AddRow(TableLayoutPanel p, Control c)
+    { var row = p.RowCount++; p.RowStyles.Add(new RowStyle(SizeType.AutoSize)); c.Dock = DockStyle.Top; p.Controls.Add(c, 0, row); }
+    private Control Field(string cs, string en, Control c)
     {
-        var row = panel.RowCount++; panel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); control.Dock = DockStyle.Top;
-        panel.Controls.Add(control, 0, row);
+        var p = Stack(); p.Margin = new Padding(0, 0, 0, 14); var label = TextLabel(cs, en, 9, dim: true);
+        if (c is not CheckBox) { c.AccessibleName = T(cs, en); fieldNames.Add((c, cs, en)); }
+        c.Dock = DockStyle.Top; c.Margin = Padding.Empty; AddRow(p, label); AddRow(p, c); return p;
     }
-    private SurfaceCard Card(Control contents)
+    private static TableLayoutPanel Pair(Control a, Control b, float percent = 50)
     {
-        var card = new SurfaceCard { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Top };
-        card.Controls.Add(contents); return card;
-    }
-    private Control Field(string cs, string en, Control control)
-    {
-        var field = Stack(); field.Margin = new Padding(0, 0, 0, 8);
-        var label = TextLabel(cs, en, 9, dim: true); label.Margin = new Padding(0, 0, 0, 6);
-        if (control is not CheckBox) { control.AccessibleName = T(cs, en); fieldNames.Add((control, cs, en)); }
-        control.Dock = DockStyle.Top; control.Margin = Padding.Empty;
-        AddRow(field, label); AddRow(field, control); return field;
-    }
-    private static TableLayoutPanel Pair(Control first, Control second, float firstPercent = 50)
-    {
-        var pair = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty, Padding = Padding.Empty };
-        pair.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, firstPercent)); pair.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100 - firstPercent));
-        first.Dock = second.Dock = DockStyle.Top; first.Margin = new Padding(0, 0, 12, 0); second.Margin = Padding.Empty;
-        pair.Controls.Add(first, 0, 0); pair.Controls.Add(second, 1, 0); return pair;
+        var p = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
+        p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, percent)); p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100 - percent));
+        a.Dock = b.Dock = DockStyle.Top; a.Margin = new Padding(0, 0, 16, 0); b.Margin = Padding.Empty; p.Controls.Add(a, 0, 0); p.Controls.Add(b, 1, 0); return p;
     }
     private BrandButton ActionButton(string cs, string en, Action action, int width = 126, bool primary = false)
     {
-        var button = new BrandButton { Width = width, Primary = primary, Margin = new Padding(0, 0, 8, 0) };
-        Bind(button, cs, en); button.Click += (_, _) => action(); return button;
+        var b = new BrandButton { Width = width, Primary = primary, Ghost = !primary, Margin = new Padding(0, 0, 8, 0) };
+        Bind(b, cs, en); b.Click += (_, _) => action(); return b;
     }
-
     private void BuildInterface()
     {
-        binding = true; uiLanguage = settings.UiLanguage;
-        Text = "JL Voice"; AutoScaleDimensions = new SizeF(96, 96); AutoScaleMode = AutoScaleMode.Dpi;
-        Font = BrandFonts.Get("body", 10); ClientSize = new Size(940, 720); MinimumSize = new Size(720, 460); MaximizeBox = false;
+        binding = true; uiLanguage = settings.UiLanguage; Text = "JL Voice";
+        AutoScaleDimensions = new SizeF(96, 96); AutoScaleMode = AutoScaleMode.Dpi;
+        Font = BrandFonts.Get("body", 10); ClientSize = new Size(640, 420); MinimumSize = new Size(560, 410); MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "assets", "brand", "JLVoice.ico")); tray.Icon = Icon;
-
-        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, Padding = Padding.Empty };
-        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 184)); shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        var rail = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 22, 20, 18) };
-        var brand = new Panel { Dock = DockStyle.Top, Height = 92 };
-        orbit.SetBounds(8, 12, 26, 26); brand.Controls.Add(orbit);
-        var name = new Label { Text = "Voice", AutoSize = true, Font = BrandFonts.Get("display", 18), Location = new Point(60, 8) }; brand.Controls.Add(name);
-        var owner = TextLabel("JL AUTOMATION", "JL AUTOMATION", 7.8f, "mono", true); owner.Dock = DockStyle.None; owner.Location = new Point(8, 63); brand.Controls.Add(owner);
-        var navigation = Stack(); navigation.Dock = DockStyle.Top;
-        overviewNav.Height = settingsNav.Height = 42; overviewNav.Margin = settingsNav.Margin = new Padding(0, 0, 8, 8);
-        Bind(overviewNav, "Přehled", "Overview"); Bind(settingsNav, "Nastavení", "Settings");
-        overviewNav.Click += (_, _) => Navigate(0); settingsNav.Click += (_, _) => Navigate(1);
-        AddRow(navigation, overviewNav); AddRow(navigation, settingsNav);
-        var railFooter = Stack(); railFooter.Dock = DockStyle.Bottom;
-        AddRow(railFooter, TextLabel("OFFLINE · CPU", "OFFLINE · CPU", 8, "mono"));
-        AddRow(railFooter, TextLabel("Vývojová verze 0.1", "Development preview 0.1", 8.5f, dim: true));
-        rail.Controls.Add(navigation); rail.Controls.Add(brand); rail.Controls.Add(railFooter);
-
-        var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Margin = Padding.Empty };
-        workspace.RowStyles.Add(new RowStyle(SizeType.Absolute, 58)); workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var bar = new Panel { Dock = DockStyle.Fill, Padding = new Padding(28, 10, 28, 8) };
-        var context = TextLabel("PRACOVNÍ PROSTOR", "WORKSPACE", 8, "mono", true); context.Dock = DockStyle.Left; context.TextAlign = ContentAlignment.MiddleLeft; context.AutoSize = false; context.Width = 240;
-        var hide = ActionButton("Na pozadí", "Hide window", Hide, 110); hide.Dock = DockStyle.Right;
-        bar.Controls.Add(context); bar.Controls.Add(hide);
-        var pages = new Panel { Dock = DockStyle.Fill };
-        foreach (var page in new[] { overview, preferences }) { page.Dock = DockStyle.Fill; page.AutoScroll = true; page.Padding = new Padding(28, 10, 28, 24); pages.Controls.Add(page); }
-        BuildOverview(); BuildPreferences(); workspace.Controls.Add(bar, 0, 0); workspace.Controls.Add(pages, 0, 1);
-        shell.Controls.Add(rail, 0, 0); shell.Controls.Add(workspace, 1, 0); Controls.Add(shell);
-
+        var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(28, 20, 28, 20) };
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 64)); shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var header = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        orbit.SetBounds(0, 12, 22, 22); header.Controls.Add(orbit);
+        header.Controls.Add(new Label { Text = "JL Voice", AutoSize = true, Font = BrandFonts.Get("display", 18), Location = new Point(50, 7) });
+        settingsButton.Ghost = back.Ghost = true; settingsButton.Width = 112; back.Width = 112; settingsButton.Height = back.Height = 38;
+        Bind(settingsButton, "Nastavení", "Settings"); Bind(back, "Zpět", "Back"); settingsButton.Dock = back.Dock = DockStyle.Right;
+        settingsButton.Click += (_, _) => Navigate(1); back.Click += (_, _) => Navigate(0); header.Controls.Add(settingsButton); header.Controls.Add(back);
+        var pages = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        foreach (var p in new[] { overview, preferences }) { p.Dock = DockStyle.Fill; p.AutoScroll = true; p.Padding = new Padding(0, 8, 0, 12); pages.Controls.Add(p); }
+        BuildOverview(); BuildPreferences(); shell.Controls.Add(header, 0, 0); shell.Controls.Add(pages, 0, 1); Controls.Add(shell);
         var menu = new ContextMenuStrip { Font = BrandFonts.Get("body", 10) };
-        menu.Items.Add(T("Otevřít JL Voice", "Open JL Voice"), null, (_, _) => ShowWorkspace());
-        menu.Items.Add(T("Zrušit diktování", "Cancel dictation"), null, async (_, _) => await CancelAsync());
-        menu.Items.Add(new ToolStripSeparator()); menu.Items.Add(T("Ukončit", "Exit"), null, (_, _) => Close()); tray.ContextMenuStrip = menu;
-        tray.DoubleClick += (_, _) => ShowWorkspace();
+        menu.Items.Add(T("Otevřít JL Voice", "Open JL Voice"), null, (_, _) => { ShowWorkspace(); Navigate(0); });
+        menu.Items.Add(T("Nastavení", "Settings"), null, (_, _) => { ShowWorkspace(); Navigate(1); });
+        bubbleMenu = new ToolStripMenuItem(); bubbleMenu.Click += (_, _) => { idleBubbleOverride = !(idleBubbleOverride ?? settings.ShowIdleBubble); if (idleBubbleOverride == true) Hide(); RefreshBubblePresence(); }; menu.Items.Add(bubbleMenu);
+        menu.Items.Add(T("Zrušit diktování", "Cancel dictation"), null, (_, _) => RequestCancel());
+        menu.Items.Add(new ToolStripSeparator()); menu.Items.Add(T("Ukončit JL Voice", "Exit JL Voice"), null, (_, _) => ExitApplication()); tray.ContextMenuStrip = menu;
+        tray.DoubleClick += (_, _) => { ShowWorkspace(); Navigate(0); };
         Resize += (_, _) => { if (WindowState == FormWindowState.Minimized) { Hide(); WindowState = FormWindowState.Normal; } };
-        save.Click += (_, _) => SaveSettings();
-        result.TextChanged += (_, _) => UpdateResult();
-        foreach (var combo in new ComboBox[] { language, microphone, key, model, threads, theme, interfaceLanguage })
-            combo.SelectedIndexChanged += (_, _) => MarkPending();
-        push.CheckedChanged += (_, _) => MarkPending();
+        save.Click += (_, _) => SaveSettings(); result.TextChanged += (_, _) => UpdateResult();
+        foreach (var c in new ComboBox[] { language, microphone, key, model, threads, theme, interfaceLanguage }) c.SelectedIndexChanged += (_, _) => MarkPending();
+        push.CheckedChanged += (_, _) => MarkPending(); idleBubble.CheckedChanged += (_, _) => MarkPending();
         theme.SelectedIndexChanged += (_, _) => { if (!binding) ApplyTheme(); };
         interfaceLanguage.SelectedIndexChanged += (_, _) => { if (!binding) Localize(); };
         SystemEvents.UserPreferenceChanged += OnSystemAppearanceChanged;
-        binding = false; ApplyTheme(); Navigate(0); UpdateSummaries(); UpdateResult(); ReadyStatus();
-        if (!reviewMode)
-        {
-            Load += (_, _) =>
-            {
-                var area = Screen.FromControl(this).WorkingArea;
-                Size = new Size(Math.Min(Width, area.Width - 32), Math.Min(Height, area.Height - 32));
-                Location = new Point(area.Left + (area.Width - Width) / 2, area.Top + (area.Height - Height) / 2);
-            };
-        }
+        binding = false; ApplyTheme(); Navigate(0); UpdateSummaries(); UpdateResult(); ReadyStatus(); overlay.SetIdle(CurrentShortcut, uiLanguage);
     }
-
     private void BuildOverview()
     {
-        var body = Stack();
-        AddRow(body, TextLabel("Stačí začít mluvit.", "Just start speaking.", 28, "display"));
-        AddRow(body, TextLabel("Zaměřte textové pole. Zbytek ovládnete klávesou.", "Focus a text field. Your shortcut takes it from there.", 10.5f, dim: true));
-        var hero = Stack();
-        status.AutoSize = true; status.Font = BrandFonts.Get("body", 12); status.Margin = new Padding(0, 0, 0, 15); status.AccessibleRole = AccessibleRole.StatusBar;
-        AddRow(hero, status);
-        shortcut.AutoSize = true; shortcut.Font = BrandFonts.Get("mono", 19); shortcut.Margin = new Padding(0, 0, 0, 12); AddRow(hero, shortcut);
-        microphoneState.AutoSize = true; microphoneState.Font = BrandFonts.Get("body", 9.5f); secondaryText.Add(microphoneState); AddRow(hero, microphoneState);
-        AddRow(body, Card(hero));
-
-        var languageBody = Stack(); AddRow(languageBody, TextLabel("JAZYK DIKTOVÁNÍ", "DICTATION LANGUAGE", 8, "mono", true));
-        languageSummary.AutoSize = true; languageSummary.Font = BrandFonts.Get("body", 12); AddRow(languageBody, languageSummary);
-        var micBody = Stack(); AddRow(micBody, TextLabel("MIKROFON", "MICROPHONE", 8, "mono", true));
-        microphoneSummary.AutoSize = true; microphoneSummary.Font = BrandFonts.Get("body", 10); microphoneSummary.AutoEllipsis = true; AddRow(micBody, microphoneSummary);
-        var summaryPair = Pair(Card(languageBody), Card(micBody)); summaryPair.Margin = new Padding(0, 0, 0, 16); AddRow(body, summaryPair);
-
-        var last = Stack(); AddRow(last, TextLabel("Poslední přepis", "Last transcript", 16, "display"));
-        var textArea = new Panel { Height = 110, Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 12) };
-        result.Dock = DockStyle.Fill; result.BorderStyle = BorderStyle.None; result.Font = BrandFonts.Get("body", 11); result.AccessibleName = T("Poslední přepis", "Last transcript");
-        emptyResult.Dock = DockStyle.Fill; emptyResult.TextAlign = ContentAlignment.MiddleLeft; emptyResult.Font = BrandFonts.Get("body", 10.5f); secondaryText.Add(emptyResult);
-        Bind(emptyResult, "Tady se zobrazí vaše slova.\nPřepis zůstává jen do dalšího diktování nebo ukončení aplikace.", "Your words will appear here.\nThe transcript stays until the next dictation or app exit.");
-        textArea.Controls.Add(result); textArea.Controls.Add(emptyResult); AddRow(last, textArea);
-        var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, Margin = Padding.Empty, WrapContents = false };
-        Bind(copy, "Kopírovat", "Copy text"); copy.Width = 116; copy.Click += (_, _) =>
-        {
-            try { if (!string.IsNullOrWhiteSpace(result.Text)) { Clipboard.SetText(result.Text); SetStatus(T("Zkopírováno do schránky.", "Copied to clipboard.")); } }
-            catch (ExternalException) { Notify(T("Schránka je právě obsazená. Zkuste to znovu.", "Clipboard is busy. Try again.")); }
-        };
-        Bind(clear, "Vymazat", "Clear"); clear.Width = 100; clear.Click += (_, _) => result.Clear();
-        actions.Controls.AddRange([copy, clear]); AddRow(last, actions); AddRow(body, Card(last));
-        AddRow(body, TextLabel("Zvuk se neukládá. Model se po přepisu uvolní z paměti.", "Audio is not saved. The model unloads after transcription.", 9, dim: true));
+        var body = Stack(); status.Font = BrandFonts.Get("display", 17); status.Margin = new Padding(0, 4, 0, 16); status.AccessibleRole = AccessibleRole.StatusBar; AddRow(body, status);
+        shortcut.AutoSize = true; shortcut.Font = BrandFonts.Get("mono", 15); shortcut.Margin = new Padding(0, 0, 0, 14); AddRow(body, shortcut);
+        microphoneState.AutoSize = true; microphoneState.Font = BrandFonts.Get("body", 10); secondaryText.Add(microphoneState); AddRow(body, microphoneState);
+        languageSummary.AutoSize = true; languageSummary.Font = BrandFonts.Get("body", 9); secondaryText.Add(languageSummary); languageSummary.Margin = new Padding(0, 0, 0, 18); AddRow(body, languageSummary);
+        var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 22), WrapContents = false };
+        actions.Controls.Add(ActionButton("Zpět k práci", "Back to work", Hide, 152, true)); AddRow(body, actions);
+        Bind(emptyResult, "Poslední přepis se objeví tady.", "Your last transcript will appear here."); emptyResult.AutoSize = true; emptyResult.Font = BrandFonts.Get("body", 9.5f); secondaryText.Add(emptyResult); AddRow(body, emptyResult);
+        var last = Stack();
+        var title = new TableLayoutPanel { AutoSize = true, ColumnCount = 3, Dock = DockStyle.Top, Margin = Padding.Empty };
+        title.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); title.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84)); title.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
+        title.Controls.Add(TextLabel("Poslední přepis", "Last transcript", 13, "display"), 0, 0);
+        Bind(copy, "Kopírovat", "Copy"); Bind(clear, "Vymazat", "Clear"); copy.Ghost = clear.Ghost = true; copy.Dock = clear.Dock = DockStyle.Top;
+        copy.Click += (_, _) => { try { if (!string.IsNullOrWhiteSpace(result.Text)) Clipboard.SetText(result.Text); } catch (ExternalException) { Notify(T("Schránka je obsazená.", "Clipboard is busy.")); } };
+        clear.Click += (_, _) => result.Clear(); title.Controls.Add(copy, 1, 0); title.Controls.Add(clear, 2, 0); AddRow(last, title);
+        result.Height = 130; result.BorderStyle = BorderStyle.None; result.Font = BrandFonts.Get("body", 11); result.Margin = new Padding(0, 8, 0, 16); AddRow(last, result);
+        lastResult.AutoSize = true; lastResult.Dock = DockStyle.Top; lastResult.Controls.Add(last); AddRow(body, lastResult);
+        var privacy = TextLabel("Mikrofon se zapne až při nahrávání. Zvuk se neukládá.", "Microphone activates only when recording. Audio is not saved.", 8.5f, dim: true); privacy.Margin = new Padding(0, 16, 0, 0); AddRow(body, privacy);
         overview.Controls.Add(body);
     }
-
     private void BuildPreferences()
     {
-        var body = Stack(); AddRow(body, TextLabel("Nastavení", "Settings", 28, "display"));
-        AddRow(body, TextLabel("Diktování podle vás. Bez dalších instalací.", "Dictation your way. No extra installations.", 10, dim: true));
-        language.Items.AddRange([T("Automaticky · experimentální", "Automatic · experimental"), "Čeština", "English"]);
-        language.SelectedIndex = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
-        RefreshMicrophones(); key.Items.AddRange(["F9", "F10", "F11", "F12"]); key.SelectedIndex = settings.Key - 0x78; push.Checked = settings.PushToTalk;
-        var recognition = Stack();
-        var micField = Stack();
-        var micButtons = Pair(microphone, ActionButton("Obnovit", "Refresh", RefreshMicrophones, 84), 76);
-        AddRow(micField, TextLabel("Mikrofon", "Microphone", 9, dim: true)); AddRow(micField, micButtons);
-        AddRow(recognition, Pair(Field("Jazyk diktování", "Dictation language", language), micField, 43));
+        var body = Stack();
+        language.Items.AddRange([T("Automaticky · experimentální", "Automatic · experimental"), "Čeština", "English"]); language.SelectedIndex = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
+        RefreshMicrophones(); key.Items.AddRange(["F9", "F10", "F11", "F12"]); key.SelectedIndex = settings.Key - 0x78; push.Checked = settings.PushToTalk; idleBubble.Checked = settings.ShowIdleBubble;
+        var micRow = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = 2, Margin = Padding.Empty };
+        micRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); micRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
+        microphone.Dock = DockStyle.Top; micRow.Controls.Add(microphone, 0, 0); var refresh = ActionButton("Obnovit", "Refresh", RefreshMicrophones, 80); refresh.Dock = DockStyle.Top; micRow.Controls.Add(refresh, 1, 0);
+        AddRow(body, Pair(Field("Jazyk diktování", "Dictation language", language), Field("Mikrofon", "Microphone", micRow), 42));
+        push.Font = idleBubble.Font = BrandFonts.Get("body", 10); Bind(push, "Držet klávesu pro nahrávání", "Hold key to record");
+        AddRow(body, Pair(Field("Klávesa", "Shortcut key", key), Field("Režim", "Mode", push), 32));
+        AddRow(body, TextLabel("Přepínání: Ctrl + Alt + klávesa. Při držení stačí samotná klávesa.", "Toggle: Ctrl + Alt + key. Hold mode uses the key alone.", 8.5f, dim: true));
+        Bind(idleBubble, "Zobrazovat bublinu i v klidu", "Show the bubble when idle"); idleBubble.Margin = new Padding(0, 8, 0, 20); AddRow(body, idleBubble);
+        theme.Items.AddRange([T("Tmavý", "Dark"), T("Světlý", "Light"), T("Podle systému", "System")]); theme.SelectedIndex = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };
+        interfaceLanguage.Items.AddRange(["Čeština", "English"]); interfaceLanguage.SelectedIndex = settings.UiLanguage == "en" ? 1 : 0;
+        AddRow(body, Pair(Field("Vzhled", "Appearance", theme), Field("Jazyk rozhraní", "Interface language", interfaceLanguage)));
+        advancedToggle.Ghost = true; Bind(advancedToggle, "Pokročilé možnosti", "Advanced options"); advancedToggle.Height = 36; advancedToggle.Click += (_, _) => { advancedOpen = !advancedOpen; advanced.Visible = advancedOpen; AdjustWindowSize(); }; AddRow(body, advancedToggle);
+        var advancedBody = Stack();
         foreach (var (file, caption) in new[] { ("ggml-base-q5_1.bin", "Base · Q5"), ("ggml-base-q8_0.bin", "Base · Q8"), ("ggml-small-q5_1.bin", "Small · Q5") })
             if (File.Exists(Path.Combine(AppContext.BaseDirectory, "models", file)) || file == settings.Model) { modelFiles.Add(file); model.Items.Add(caption); }
         model.SelectedIndex = Math.Max(0, modelFiles.IndexOf(settings.Model)); threads.Items.AddRange(["1", "2"]); threads.SelectedIndex = settings.Threads - 1;
-        AddRow(recognition, Pair(Field("Model v tomto balíčku", "Bundled model", model), Field("Vlákna procesoru", "CPU threads", threads), 65));
-        AddRow(recognition, TextLabel("Automatický jazyk a kvalita modelů se zatím ověřují.", "Automatic detection and model quality are still being evaluated.", 8.5f, dim: true));
-        AddRow(body, Card(recognition));
-        var recording = Stack();
-        push.AutoSize = true; push.Font = BrandFonts.Get("body", 10); push.Margin = new Padding(0, 5, 0, 4); Bind(push, "Nahrávat při držení klávesy", "Hold the key to record");
-        AddRow(recording, Pair(Field("Klávesa", "Shortcut key", key), Field("Režim nahrávání", "Recording mode", push), 32));
-        AddRow(recording, TextLabel("Přepínání používá Ctrl + Alt + klávesu. Při držení stačí samotná klávesa.", "Toggle mode uses Ctrl + Alt + key. Hold mode uses the key alone.", 8.5f, dim: true));
-        AddRow(body, Card(recording));
-        theme.Items.AddRange([T("Tmavý", "Dark"), T("Světlý", "Light"), T("Podle systému", "System")]);
-        theme.SelectedIndex = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };
-        interfaceLanguage.Items.AddRange(["Čeština", "English"]); interfaceLanguage.SelectedIndex = settings.UiLanguage == "en" ? 1 : 0;
-        AddRow(body, Card(Pair(Field("Vzhled", "Appearance", theme), Field("Jazyk rozhraní", "Interface language", interfaceLanguage))));
-        var footer = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = 2, Margin = Padding.Empty };
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+        AddRow(advancedBody, Pair(Field("Model v balíčku", "Bundled model", model), Field("CPU vlákna", "CPU threads", threads), 65));
+        AddRow(advancedBody, TextLabel("Automatický jazyk a kvalita modelů se zatím ověřují.", "Automatic detection and model quality are still being evaluated.", 8.5f, dim: true));
+        advanced.AutoSize = true; advanced.Dock = DockStyle.Top; advanced.Controls.Add(advancedBody); advanced.Visible = false; AddRow(body, advanced);
+        var footer = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = 2, Margin = new Padding(0, 18, 0, 0) };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 152));
         pending.AutoSize = true; pending.Font = BrandFonts.Get("body", 9); secondaryText.Add(pending); pending.Margin = new Padding(0, 10, 12, 0);
-        save.Primary = true; save.Height = 40; Bind(save, "Uložit nastavení", "Save settings"); save.Dock = DockStyle.Top;
+        save.Primary = true; save.Height = 40; Bind(save, "Uložit", "Save changes"); save.Dock = DockStyle.Top;
         footer.Controls.Add(pending, 0, 0); footer.Controls.Add(save, 1, 0); AddRow(body, footer); preferences.Controls.Add(body);
     }
-
     private void RefreshMicrophones()
     {
-        var selected = microphone.SelectedItem?.ToString();
-        microphone.Items.Clear();
+        var selected = microphone.SelectedItem?.ToString(); microphone.Items.Clear();
         for (var i = 0; i < WaveInEvent.DeviceCount; ++i) microphone.Items.Add(WaveInEvent.GetCapabilities(i).ProductName);
         if (microphone.Items.Count == 0) { microphone.Items.Add(T("Žádný mikrofon", "No microphone")); microphone.Enabled = false; microphone.SelectedIndex = 0; }
         else { microphone.Enabled = true; microphone.SelectedIndex = selected is not null && microphone.Items.Contains(selected) ? microphone.Items.IndexOf(selected) : Math.Clamp(settings.Microphone, 0, microphone.Items.Count - 1); }
-        microphone.AccessibleName = T("Mikrofon", "Microphone");
-        hints.SetToolTip(microphone, microphone.SelectedItem?.ToString());
+        microphone.AccessibleName = T("Mikrofon", "Microphone"); hints.SetToolTip(microphone, microphone.SelectedItem?.ToString());
     }
-    private void ShowWorkspace() { Show(); WindowState = FormWindowState.Normal; Activate(); }
+    private void ShowWorkspace() { Show(); WindowState = FormWindowState.Normal; Activate(); AdjustWindowSize(); }
     private void Navigate(int page)
     {
-        currentPage = page; overview.Visible = page == 0; preferences.Visible = page == 1;
-        (page == 0 ? overview : preferences).BringToFront(); overviewNav.Selected = page == 0; settingsNav.Selected = page == 1;
-        overviewNav.Invalidate(); settingsNav.Invalidate();
+        currentPage = page; overview.Visible = page == 0; preferences.Visible = page == 1; (page == 0 ? overview : preferences).BringToFront();
+        back.Visible = page == 1; settingsButton.Visible = page == 0; AdjustWindowSize();
     }
-    private void MarkPending() { if (!binding) pending.Text = T("Máte neuložené změny.", "You have unsaved changes."); }
-    private void UpdateResult() { emptyResult.Visible = string.IsNullOrEmpty(result.Text); copy.Enabled = clear.Enabled = !emptyResult.Visible; }
+    private void AdjustWindowSize()
+    {
+        if (reviewMode || !IsHandleCreated) return;
+        var area = Screen.FromControl(this).WorkingArea; var height = (currentPage == 1 ? advancedOpen ? 720 : 630 : result.TextLength > 0 ? 600 : 420) * DeviceDpi / 96;
+        Size = new Size(Math.Min(Width, area.Width - 24), Math.Min(height + Height - ClientSize.Height, area.Height - 24));
+        if (Bottom > area.Bottom) Top = Math.Max(area.Top, area.Bottom - Height);
+    }
+    private void MarkPending() { if (!binding) pending.Text = T("Neuložené změny", "Unsaved changes"); }
+    private void UpdateResult() { var hasText = !string.IsNullOrEmpty(result.Text); lastResult.Visible = hasText; emptyResult.Visible = !hasText; copy.Enabled = clear.Enabled = hasText; if (Visible) AdjustWindowSize(); }
     private void UpdateSummaries()
     {
-        shortcut.Text = settings.PushToTalk ? ((Keys)settings.Key).ToString() : $"Ctrl + Alt + {(Keys)settings.Key}";
-        languageSummary.Text = settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") };
-        microphoneSummary.Text = settings.Microphone >= 0 && settings.Microphone < WaveInEvent.DeviceCount ? WaveInEvent.GetCapabilities(settings.Microphone).ProductName : T("Žádný mikrofon", "No microphone");
-        microphoneState.Text = settings.PushToTalk ? T("Držte klávesu a mluvte. Uvolněním spustíte přepis.", "Hold the key and speak. Release to transcribe.") : T("Prvním stiskem začnete. Druhým spustíte přepis.", "Press once to record. Press again to transcribe.");
+        shortcut.Text = CurrentShortcut;
+        languageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") });
+        microphoneState.Text = T("Zaměřte textové pole. Použijte zkratku nebo bublinu dole na obrazovce.", "Focus a text field. Use the shortcut or the bubble at the bottom of your screen.");
     }
     private void SetStatus(string text) { status.Text = text; status.Parent?.PerformLayout(); }
     private void ReadyStatus()
     {
         var complete = File.Exists(Path.Combine(AppContext.BaseDirectory, "runtime", "JLVoiceAsr.exe")) && File.Exists(Path.Combine(AppContext.BaseDirectory, "models", settings.Model));
-        SetStatus(!complete ? T("Chybí model nebo součást balíčku.", "Model or runtime is missing.") : WaveInEvent.DeviceCount == 0 ? T("Připojte mikrofon a obnovte seznam.", "Connect a microphone and refresh the list.") : T("Připraveno k diktování", "Ready to dictate"));
+        SetStatus(!complete ? T("Chybí součást balíčku.", "A package component is missing.") : WaveInEvent.DeviceCount == 0 ? T("Připojte mikrofon.", "Connect a microphone.") : T("Připraveno, až budete vy.", "Ready when you are."));
+    }
+    private void UpdateBubbleMenu()
+    {
+        if (bubbleMenu is null) return;
+        bubbleMenu.Text = (idleBubbleOverride ?? settings.ShowIdleBubble) ? T("Skrýt bublinu v klidu", "Hide idle bubble") : T("Zobrazit bublinu", "Show bubble");
     }
     private void Localize()
     {
         uiLanguage = interfaceLanguage.SelectedIndex == 1 ? "en" : "cs";
-        foreach (var (control, cs, en) in captions) control.Text = T(cs, en);
-        var old = language.SelectedIndex; language.Items[0] = T("Automaticky · experimentální", "Automatic · experimental"); language.SelectedIndex = old;
-        old = theme.SelectedIndex; theme.Items[0] = T("Tmavý", "Dark"); theme.Items[1] = T("Světlý", "Light"); theme.Items[2] = T("Podle systému", "System"); theme.SelectedIndex = old;
+        foreach (var (c, cs, en) in captions) c.Text = T(cs, en);
+        language.Items[0] = T("Automaticky · experimentální", "Automatic · experimental");
+        theme.Items[0] = T("Tmavý", "Dark"); theme.Items[1] = T("Světlý", "Light"); theme.Items[2] = T("Podle systému", "System");
         if (WaveInEvent.DeviceCount == 0) microphone.Items[0] = T("Žádný mikrofon", "No microphone");
-        foreach (var (control, cs, en) in fieldNames) control.AccessibleName = T(cs, en);
+        foreach (var (c, cs, en) in fieldNames) c.AccessibleName = T(cs, en);
         microphone.AccessibleName = T("Mikrofon", "Microphone"); result.AccessibleName = T("Poslední přepis", "Last transcript");
-        if (tray.ContextMenuStrip is { } menu) { menu.Items[0].Text = T("Otevřít JL Voice", "Open JL Voice"); menu.Items[1].Text = T("Zrušit diktování", "Cancel dictation"); menu.Items[3].Text = T("Ukončit", "Exit"); }
-        UpdateSummaries(); if (!busy && capture is null) ReadyStatus(); MarkPending();
+        if (tray.ContextMenuStrip is { } menu) { menu.Items[0].Text = T("Otevřít JL Voice", "Open JL Voice"); menu.Items[1].Text = T("Nastavení", "Settings"); menu.Items[3].Text = T("Zrušit diktování", "Cancel dictation"); menu.Items[5].Text = T("Ukončit JL Voice", "Exit JL Voice"); }
+        UpdateBubbleMenu(); UpdateSummaries(); if (!busy && capture is null) ReadyStatus(); MarkPending();
     }
     private string SelectedTheme => theme.SelectedIndex switch { 1 => "light", 2 => "system", _ => "dark" };
     private void ApplyTheme()
     {
-        colors = Palette.Resolve(SelectedTheme);
-        var nativeMode = !SystemInformation.HighContrast && colors.Background.GetBrightness() < .5 ? SystemColorMode.Dark : SystemColorMode.Classic;
-        var nativeModeChanged = Application.ColorMode != nativeMode;
-        Application.SetColorMode(nativeMode);
-        void Apply(Control control, Color inherited)
+        colors = Palette.Resolve(SelectedTheme); var mode = !SystemInformation.HighContrast && colors.Background.GetBrightness() < .5 ? SystemColorMode.Dark : SystemColorMode.Classic;
+        var changed = Application.ColorMode != mode; Application.SetColorMode(mode);
+        void Apply(Control c, Color inherited)
         {
-            control.BackColor = control is SurfaceCard ? colors.Surface : control is TextBox or ComboBox ? colors.Inset : inherited;
-            control.ForeColor = secondaryText.Contains(control) ? colors.Dim : colors.Ink;
-            if (control is SurfaceCard card) card.BorderColor = colors.Border;
-            if (control is BrandButton button) button.Colors = colors;
-            if (control is BrandCombo combo) { combo.Colors = colors; if (nativeModeChanged) combo.RefreshNativeTheme(); }
-            if (nativeModeChanged && control is BrandCheckBox check) check.RefreshNativeTheme();
-            foreach (Control child in control.Controls) Apply(child, control.BackColor);
-            control.Invalidate();
+            c.BackColor = c is TextBox or ComboBox ? colors.Inset : inherited; c.ForeColor = secondaryText.Contains(c) ? colors.Dim : colors.Ink;
+            if (c is BrandButton b) b.Colors = colors;
+            if (c is BrandCombo combo) { combo.Colors = colors; if (changed) combo.RefreshNativeTheme(); }
+            if (changed && c is BrandCheckBox check) check.RefreshNativeTheme();
+            foreach (Control child in c.Controls) Apply(child, c.BackColor); c.Invalidate();
         }
         SuspendLayout(); Apply(this, colors.Background);
         var path = Path.Combine(AppContext.BaseDirectory, "assets", "brand", colors.Background.GetBrightness() < .5 ? "mark-dark.png" : "mark-light.png");
-        if (File.Exists(path))
-        {
-            if (!brandImages.TryGetValue(path, out var image)) { image = Image.FromFile(path); brandImages[path] = image; }
-            orbit.Image = image;
-        }
-        overlay.ApplyTheme(colors); ResumeLayout(true);
-        if (IsHandleCreated) ApplyTitleBar();
+        if (File.Exists(path)) { if (!brandImages.TryGetValue(path, out var image)) { image = Image.FromFile(path); brandImages[path] = image; } orbit.Image = image; }
+        overlay.ApplyTheme(colors); ResumeLayout(true); if (IsHandleCreated) ApplyTitleBar();
     }
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr handle, int attribute, ref int value, int size);
     private void ApplyTitleBar() { var dark = colors.Background.GetBrightness() < .5 ? 1 : 0; DwmSetWindowAttribute(Handle, 20, ref dark, 4); }
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplyTitleBar(); }
-    private void OnSystemAppearanceChanged(object sender, UserPreferenceChangedEventArgs e)
-    {
-        if (!closing && IsHandleCreated) BeginInvoke(() => { if (!closing) ApplyTheme(); });
-    }
+    private void OnSystemAppearanceChanged(object sender, UserPreferenceChangedEventArgs e) { PostToUi(ApplyTheme); }
     private void DisposeView()
     {
-        SystemEvents.UserPreferenceChanged -= OnSystemAppearanceChanged;
-        hints.Dispose(); orbit.Image = null; foreach (var image in brandImages.Values) image.Dispose();
+        SystemEvents.UserPreferenceChanged -= OnSystemAppearanceChanged; hints.Dispose(); orbit.Image = null; foreach (var image in brandImages.Values) image.Dispose();
     }
 }

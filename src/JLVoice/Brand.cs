@@ -105,7 +105,7 @@ internal sealed class SurfaceCard : TableLayoutPanel
 internal sealed class BrandButton : Button
 {
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public bool Primary { get; set; }
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public bool Selected { get; set; }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public bool Ghost { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public Palette Colors { get; set; } = Palette.Resolve("dark");
     private bool hovered;
     public BrandButton()
@@ -117,15 +117,11 @@ internal sealed class BrandButton : Button
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.Clear(BackColor); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        var fill = !Enabled ? Colors.Inset : Primary ? Colors.Accent : Selected || hovered ? Colors.Inset : BackColor;
+        var fill = !Enabled ? BackColor : Primary ? Colors.Accent : hovered ? Colors.Inset : BackColor;
         using var path = Shape.Round(new Rectangle(0, 0, Width - 1, Height - 1), 8);
         using var brush = new SolidBrush(fill); e.Graphics.FillPath(brush, path);
         using var pen = new Pen(Focused && ShowFocusCues ? Colors.Accent : Primary ? fill : Colors.Border, Focused && ShowFocusCues ? 2 : 1);
-        e.Graphics.DrawPath(pen, path);
-        if (Selected)
-        {
-            using var active = new Pen(Colors.Accent, 2); e.Graphics.DrawLine(active, 4, 12, 4, Height - 12);
-        }
+        if (!Ghost || (Focused && ShowFocusCues)) e.Graphics.DrawPath(pen, path);
         if (Primary && Focused && ShowFocusCues)
         {
             using var ring = Shape.Round(Rectangle.Inflate(ClientRectangle, -4, -4), 5);
