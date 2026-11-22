@@ -15,6 +15,11 @@ from score import align
 
 FILES = ('encoder.int8.onnx', 'decoder.int8.onnx', 'joiner.int8.onnx', 'tokens.txt')
 
+def encode_result(result):
+    # Windows redirected stdout may use cp1252. ASCII JSON escapes preserve all
+    # Unicode text across the pipe; the final report is explicitly UTF-8.
+    return json.dumps(result, ensure_ascii=True)
+
 def sha256(path):
     with path.open('rb') as file: return hashlib.file_digest(file, 'sha256').hexdigest()
 
@@ -55,7 +60,7 @@ def main():
     parser.add_argument('--repeats', type=int, default=2, choices=[1,2,3])
     args = parser.parse_args()
     if args.worker_audio:
-        print(json.dumps(worker(args.model, args.worker_audio), ensure_ascii=False)); return
+        print(encode_result(worker(args.model, args.worker_audio))); return
     if not args.corpus or not args.output: parser.error('Need --corpus and --output')
     corpus = json.loads(args.corpus.read_text(encoding='utf-8'))
     rows = []
