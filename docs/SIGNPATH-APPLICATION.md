@@ -51,3 +51,9 @@ A proposed eligibility enquiry, **not sent**:
 Owner review of this draft and explicit authorization naming the Foundation/application are required before any enquiry or application is sent. The reviewed message must state these limitations rather than claim completed release/hardware acceptance or existing sponsorship.
 
 Official references: https://signpath.org/terms · https://signpath.org/apply · https://docs.signpath.io/trusted-build-systems/github .
+
+## Verified technical preparation
+
+[Windows CI run 45031058913](https://github.com/beamj786-rgb/jl-voice/actions/runs/45031058913), source `e9a2e2309c9e74edee8d6e7e0cf457436fa1b94b`, passed the original-binary metadata check and the existing packaging, integrity, signing-negative, core/native inference and UI checks. `JLVoice.exe`, `JLVoice.dll` and `runtime/JLVoiceAsr.exe` each report ProductName `JL Voice`, ProductVersion `0.1.0` and FileVersion `0.1.0.0`. GitHub now identifies the root source license as MIT.
+
+The archived readiness report explicitly records Foundation approval/submission, full-bundle licensing, dependency signing coverage and SAC qualification as false. This verifies preparation only. No provider access or message transmission is established by a successful build. The owner is being asked separately whether to send the eligibility enquiry and what contact information may be used; private contact details must not be added to this public document.
