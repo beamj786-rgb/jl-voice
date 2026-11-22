@@ -36,3 +36,28 @@ Python/sherpa-onnx are developer benchmark dependencies only; they are not insta
 Parakeet TDT 0.6B v3: NVIDIA and contributors, CC-BY-4.0, https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 . Local conversion: k2-fsa/sherpa-onnx, https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/nemo-transducer-models.html . sherpa-onnx runtime is Apache-2.0; its benchmark wheels are not included in the cloud kit. Cloud NIM deployment terms are separate from downloaded model weights.
 
 Included public audio/reference text: FLEURS, Google and contributors, CC-BY-4.0, https://huggingface.co/datasets/google/fleurs . Revision, prompt IDs, original/converted audio hashes and conversion details are preserved in `public-corpus/corpus.json`. These samples retain their source license and are not relicensed under JL Voice's original-code MIT license. .NET self-contained runtime retains its distributed notices. No owner recordings or credentials are bundled.
+
+## Measured results and current conclusion
+
+[Windows CI run 45059057919](https://github.com/beamj786-rgb/jl-voice/actions/runs/45059057919), source `13455ab8c09781ca4bdd1b8828d2ebe042dabf0b`, passed real local Parakeet CPU inference and self-contained cloud-kit publish/contract checks. Cloud API tests in CI were mocked: **no real NVIDIA API request or cloud benchmark result is claimed**. [Raw measurements, returned text, corpus hashes and provenance](benchmark-evidence/2026-11-22-nvidia/).
+
+Hosted Windows Server, AMD Family 25 Model 17, four logical CPUs, approximately 16 GB RAM; CPU provider, two threads, below-normal priority. Three unique clips per language, two fresh-process runs per clip (20 Czech and 31 English unique reference words). Repeated runs are not additional independent speech coverage. WER/CER lower is better. Inference includes feature preparation/decode, not model load or process startup. Peak RAM is the entire benchmark worker, excluding the WPF app.
+
+| Language | WER | CER | Median inference | Median model load | Median worker total | Peak worker RAM |
+|---|---:|---:|---:|---:|---:|---:|
+| Czech | 60.0% | 25.8% | 0.188 s | 1.759 s | 2.128 s | 760.0 MiB |
+| English | 48.4% | 34.2% | 0.192 s | 1.795 s | 2.150 s | 759.9 MiB |
+
+Mean process CPU utilization was approximately 109%/108% of one logical core, including model loading and worker lifetime. The earlier Whisper Windows probe used another hosted CPU model; these timings do not establish a controlled speedup over Whisper. Local warm model residency could avoid repeated initialization but would retain substantial RAM; that trade-off is not implemented or accepted for 8 GB everyday use.
+
+Actual returned text illustrates both outcomes: the Czech Moldovan-religion sentence is mostly recognizable with inflection/spelling errors; a Czech clip with foreign names was transcribed as Polish-looking text. One English clip is good apart from formatting, while a very quiet clip produces unrelated words. Parakeet therefore is **not a quality-qualified replacement**. Explicit CZ/EN forcing and mixed-language usability are still unverified for this local TDT adapter.
+
+### Separate gain experiment
+
+The public English clips have very low PCM amplitude (roughly 0.0004–0.0008 full-scale RMS). A separate Linux probe used the exact same source clips with experimental peak normalization to 0.8 full scale, preserving durations/rates; source/transformed hashes and gain factors are archived. With the same Parakeet model, English WER changed from 48.4% to 22.6% and CER from 34.2% to 5.2%; Czech WER changed from 50% to 55%. These are tiny-set exploratory results, not a universal gain rule or a fair comparison to unmodified input. No gain normalization was added to JL Voice. This is evidence that input level matters and that a different model alone is not sufficient to diagnose the owner's capture.
+
+### Windows probe failure and repair
+
+The initial Windows benchmark failed before producing an accepted report: redirected Python stdout used cp1252 and could not encode Czech `ř`. The failure was confirmed in Windows logs and reproduced locally with `PYTHONIOENCODING=cp1252`. Worker protocol now uses ASCII JSON escapes; UTF-8 report files restore the exact Unicode text. A protocol regression check covers Czech diacritics and emoji across a cp1252 pipe. This fixes the developer benchmark's transport, not an asserted cause of prior JL Voice WPF/native insertion errors. No failed-run scores are included above.
+
+The cloud kit can be downloaded from [the successful Windows run](https://github.com/beamj786-rgb/jl-voice/actions/runs/45059057919/artifacts/14768831898). The earlier independently built kit is the same cloud client and remains usable; the later change repaired only the local Python benchmark protocol. The app itself was not rebuilt/replaced or given a cloud default. No release/deployment occurred.

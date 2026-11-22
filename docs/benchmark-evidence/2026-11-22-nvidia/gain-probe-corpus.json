@@ -1,0 +1,78 @@
+{
+  "dataset": "google/fleurs",
+  "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "split": "dev",
+  "license": "CC-BY-4.0",
+  "selection": "3 shortest unique prompt IDs per language with >=3 seconds; narrow read-speech probe",
+  "samples": [
+    {
+      "id": "cs-1652",
+      "language": "cs",
+      "audio": "cs-17601571562489382698.wav",
+      "reference": "Hlavním náboženstvím Moldavska je ortodoxní křesťanství.",
+      "audio_sha256": "930f8a75b381bf4ae37a0ff1194273ab12cb694ec23a9ecf2a3be1bb5f6c064e",
+      "source_file": "17601571562489382698.wav",
+      "source_sha256": "9280a7b96085590720905080a09281964318391fa06e33c7570ecdba110399b1",
+      "input_audio_sha256": "87b4c2261081a990d14ae45b7ac4c9d7d8341fee24de3055f273726a8a405076",
+      "gain": 3.618663721700718
+    },
+    {
+      "id": "cs-1578",
+      "language": "cs",
+      "audio": "cs-3881166977906690356.wav",
+      "reference": "Poté zpěv bhajanů převzal Lakkha Singh.",
+      "audio_sha256": "8d40b84b208a595611bf8ae9d2e166e6bc496668dde8e69051c4c738e4cf9bf3",
+      "source_file": "3881166977906690356.wav",
+      "source_sha256": "98bc41979f6f8568d00e732f221515b1e7c359685030230b2b52898c4c196b44",
+      "input_audio_sha256": "4eb041e4d43dd10f0daac3b402bb414891a2736a6f72a9ffd5e716c689a7cdc2",
+      "gain": 3.741058941058941
+    },
+    {
+      "id": "cs-1515",
+      "language": "cs",
+      "audio": "cs-6672510053332439564.wav",
+      "reference": "Je to Martellyho pátá CEP za čtyři roky.",
+      "audio_sha256": "53d14717180517270115b3e33978374a0ddd5e65402059a7c64592d002871dee",
+      "source_file": "6672510053332439564.wav",
+      "source_sha256": "5e4f448e2a65a1457712316c7ea54b7aad96ca862186b9b4646ad207051e391c",
+      "input_audio_sha256": "51f314b86bfe3a88e46ee057c5a0695f1db128baa4e51029268b5bc2b04b6062",
+      "gain": 3.2948215183509304
+    },
+    {
+      "id": "en-1554",
+      "language": "en",
+      "audio": "en-1936362254666654691.wav",
+      "reference": "He built a WiFi door bell, he said.",
+      "audio_sha256": "8598ccba69d4b8089f386301409f9409f0f3b5785d50453aabbd2bd63e6298d0",
+      "source_file": "1936362254666654691.wav",
+      "source_sha256": "07e69f01772fe6f61add82534396a0141283ff75255ba2b47a0bcf432a90b055",
+      "input_audio_sha256": "0754de5c9da60fe4729fe3978e602a24900563477f0ddb786f17cb2b63974bfd",
+      "gain": 131.72663316582916
+    },
+    {
+      "id": "en-1656",
+      "language": "en",
+      "audio": "en-5013644788394205460.wav",
+      "reference": "Police said that the body appeared to have been there for about a day.",
+      "audio_sha256": "14f2b8659c505ac8f86bcbe37781994f979933a2bcde3d4ed70c0c033b25553b",
+      "source_file": "5013644788394205460.wav",
+      "source_sha256": "dff794e7386d5e78ee686395d9f6fd0796db1204f9131fc35e3cb47ac9250048",
+      "input_audio_sha256": "5e1b6a3a40794f4d2d5462a81644f1ff39943a315197a226c571dea3a2aa369d",
+      "gain": 123.6490566037736
+    },
+    {
+      "id": "en-1622",
+      "language": "en",
+      "audio": "en-9810650684898829002.wav",
+      "reference": "U.S. President George W. Bush welcomed the announcement.",
+      "audio_sha256": "c131cdf59be8118e94a1993e5fdad00ca306158a5cf53eabf076dd9da23b94c4",
+      "source_file": "9810650684898829002.wav",
+      "source_sha256": "d2fcd3806db83c6ab968de223673ec875f88557b94fb9a4a22404fde90d1d598",
+      "input_audio_sha256": "631d357f0aa90e9ba6f844a616fd4e611f75cc3eb14b3a26154004df5ff3d35e",
+      "gain": 278.868085106383
+    }
+  ],
+  "attribution": "FLEURS, Google and contributors; https://huggingface.co/datasets/google/fleurs; CC-BY-4.0",
+  "conversion": "Mono 16 kHz float32 to signed PCM16: round(x*32768), clamp; no resampling",
+  "preprocessing": "Experimental peak normalization to 0.8 full scale from PCM16; no resampling; not app default"
+}

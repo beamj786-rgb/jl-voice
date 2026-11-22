@@ -1,0 +1,16 @@
+{
+  "source_commit": "13455ab8c09781ca4bdd1b8828d2ebe042dabf0b",
+  "windows_run": "https://github.com/beamj786-rgb/jl-voice/actions/runs/45059057919",
+  "cloud_request_executed_by_agent": false,
+  "cloud_benchmark_status": "awaiting owner-local hidden-key run; no NVIDIA API key configured in this environment",
+  "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
+  "archive_sha256": "1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9",
+  "linux_container_memory_limit_bytes": 8589934592,
+  "linux_container_cpu_quota_cores": 2,
+  "gain_probe": "For each original PCM16 clip: gain=0.8*32767/max(abs(sample)); output=clamp(round(sample*gain),-32768,32767). Same duration, no resampling. Original and transformed hashes/gains preserved; not an application default.",
+  "limitations": [
+    "Different hosted CPU models were used for earlier Windows Whisper and current Windows Parakeet runs; do not treat cross-run latency differences as controlled engine speedup.",
+    "No actual low-end physical Windows 11 hardware, microphone, mixed language, application insertion or cloud quality/latency acceptance.",
+    "API contract tests use an in-memory mock only. Real local Parakeet inference is measured separately."
+  ]
+}
