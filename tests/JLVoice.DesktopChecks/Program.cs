@@ -43,13 +43,13 @@ internal static class Program
                 // Disposable test desktop only: seed multiple non-sensitive formats.
                 const string originalClipboard = "ORIGINAL CLIPBOARD · žluťoučký 😀";
                 const string originalRtf = @"{\rtf1\ansi ORIGINAL}";
-                void SeedClipboard()
+                void SeedClipboard(bool persist = true)
                 {
                     var data = new DataObject();
                     data.SetData(DataFormats.UnicodeText, false, originalClipboard);
                     data.SetData(DataFormats.Rtf, false, originalRtf);
                     data.SetData("JLVoice.NativeFixture", false, new MemoryStream(new byte[] { 0, 7, 255, 42 }));
-                    Clipboard.SetDataObject(data, true);
+                    Clipboard.SetDataObject(data, persist);
                 }
                 void CheckClipboard()
                 {
@@ -65,6 +65,11 @@ internal static class Program
                 CheckClipboard();
                 if (packetEvents != 0) throw new Exception("Paste unexpectedly emitted Unicode key packets.");
                 Console.WriteLine("PASS: exact long Czech/English/emoji paste, no VK_PACKET events, original text/RTF/binary clipboard restored");
+                SeedClipboard(persist: false); editor.Clear();
+                await WindowsInput.InsertAsync(sentence, WindowsInput.CaptureTarget(), CancellationToken.None, form.Handle);
+                if (editor.Text != sentence) throw new Exception("Paste from delayed-render clipboard failed.");
+                CheckClipboard();
+                Console.WriteLine("PASS: delayed-render OLE text/RTF/binary clipboard materializes and restores correctly");
                 other.Focus(); await Task.Delay(100);
                 var clipboard = GetClipboardSequenceNumber();
                 try { await WindowsInput.InsertAsync("MUST NOT APPEAR", target, CancellationToken.None, form.Handle); throw new Exception("Changed target accepted."); }
