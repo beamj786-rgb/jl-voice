@@ -15,7 +15,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 - Czech, English, and experimental Automatic language selection.
 - Isolated, below-normal-priority native whisper.cpp CPU worker with at most two inference threads, GPU explicitly disabled, five-minute timeout and cancellation.
 - Audio sent through an anonymous pipe, no audio files or persistent transcript history by default. Last result stays in memory until the next recording or exit.
-- Unicode keyboard insertion with an original-window check, without changing the clipboard. Input dispatch still needs real target-app acceptance testing.
+- Whole-text Ctrl+V insertion with an original-window check and a bounded in-memory clipboard backup/restore transaction. Modern Notepad/browser acceptance still requires owner testing.
 - Worker exits after each dictation, releasing model memory. No prewarming, idle inference, or resident LLM.
 - Portable settings, pinned model download hashes, Windows packaging script and developer benchmark tools.
 - JL Automation WPF UI: bundled Funnel Display / Funnel Sans / Geist Mono, original Orbit assets, dark/light/system themes, Czech/English interface, minimal main window and settings with advanced options. See [UI design and review](docs/UI.md).

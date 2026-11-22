@@ -61,21 +61,42 @@ internal static class WindowsInput
         if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>()) != inputs.Length)
             throw new Win32Exception(Marshal.GetLastWin32Error(), "Insertion was blocked or partial. Check the target field before retrying; elevated apps may reject input.");
     }
-    public static async Task InsertAsync(string text, Target original, CancellationToken token)
+    public static async Task InsertAsync(string text, Target original, CancellationToken token, IntPtr clipboardOwner)
     {
-        // Dispatch one Unicode scalar at a time. Some modern editors mishandle a large
-        // VK_PACKET burst. Never use or replace the user's clipboard for dictation.
+        token.ThrowIfCancellationRequested();
         CheckTarget(original);
-        foreach (var rune in text.EnumerateRunes())
+        using var transfer = await ClipboardTransfer.PublishAsync(clipboardOwner, text, token);
+        var dispatched = false;
+        try
         {
             token.ThrowIfCancellationRequested(); CheckTarget(original);
-            var inputs = rune.ToString().SelectMany(ch => new[]
+            transfer.CheckUnchanged();
+            // A single normal paste avoids modern editors corrupting VK_PACKET streams.
+            // No transcript characters are sent as keyboard packets.
+            dispatched = true;
+            var paste = new[]
             {
-                new Input { Type = 1, Key = new Keyboard { Scan = ch, Flags = 4, Extra = OwnInputTag } },
-                new Input { Type = 1, Key = new Keyboard { Scan = ch, Flags = 6, Extra = OwnInputTag } }
-            }).ToArray();
-            Send(inputs);
-            await Task.Delay(4, token);
+                new Input { Type = 1, Key = new Keyboard { Key = 0x11, Extra = OwnInputTag } },
+                new Input { Type = 1, Key = new Keyboard { Key = 0x56, Extra = OwnInputTag } },
+                new Input { Type = 1, Key = new Keyboard { Key = 0x56, Flags = 2, Extra = OwnInputTag } },
+                new Input { Type = 1, Key = new Keyboard { Key = 0x11, Flags = 2, Extra = OwnInputTag } }
+            };
+            try { Send(paste); }
+            catch
+            {
+                // A partial SendInput must not leave our synthetic Ctrl/V held.
+                var release = paste.Skip(2).ToArray();
+                SendInput((uint)release.Length, release, Marshal.SizeOf<Input>());
+                throw;
+            }
+        }
+        finally
+        {
+            // The destination reads the clipboard asynchronously. This grace period is
+            // a compatibility bound, not proof of paste completion in an arbitrary app.
+            // Once dispatched, cancellation cannot retract a paste already delivered.
+            if (dispatched) await Task.Delay(700);
+            await transfer.RestoreAsync();
         }
     }
 

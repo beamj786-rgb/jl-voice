@@ -19,3 +19,6 @@
 - Upstream MSVC builds emit warnings, including pointer/bool conversions in ggml backward-gradient helpers and ignored GCC pragmas. Source inspection places the reported conversion sites in gradient-building code; the inference smoke test passes, but this is not a comprehensive upstream warning audit. Review before release; no upstream patch is carried.
 
 - NVIDIA app integration is a development test: owner microphone → cloud → original target insertion still needs hands-on acceptance. Cloud Auto is unverified and disabled; select Czech or English. Developer endpoint availability, quotas and continued free access are not guaranteed. Cloud does not resolve Windows blocking the unsigned main executable.
+
+- Owner confirmed paced Unicode packet insertion corrupts text in Notepad, whereas explicit Copy → Ctrl+V preserves the app transcript. A transactional paste replacement is under test. Native HWND guards cannot distinguish browser DOM fields; clipboard restoration is conditional and can fail under Windows locks. Targets reading later than the 700 ms grace period remain an unverified compatibility risk.
+- Owner also reported NVIDIA cloud with requested Czech returning inaccurate English text. The shared client sends cs-CZ; actual microphone audio and same-audio model comparison are still needed. Do not treat fixing insertion as fixing recognition accuracy.

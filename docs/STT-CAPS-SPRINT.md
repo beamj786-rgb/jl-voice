@@ -141,3 +141,7 @@ The Czech output is closer at the character level but still contains inflection/
 2. Use the in-memory replay checkbox to compare Base/Small, explicit Czech/English and Auto on the owner's exact captured non-sensitive clip. Compare playback, Last transcript and destination text separately.
 3. Expand the paired corpus to multiple speakers, ordinary longer conversation, mixed technical vocabulary and silence/noise. Use larger models or revised decoding only when those comparisons justify their cost; measured quality is currently insufficient.
 4. Perform actual clean offline Windows and representative 8 GB physical hardware/resource/desktop-responsiveness acceptance. Resolve trusted distribution for PCs with enforced app-control blocking before claiming broad installation support.
+
+## Superseding insertion regression
+
+The owner subsequently reproduced corruption in modern Notepad with the paced packet path; manual Copy → Ctrl+V matched the retained transcript exactly. The current implementation replaces that historical path with a bounded clipboard backup / one Ctrl+V / conditional restore transaction. See TESTING.md and PRIVACY.md for its proof and limitations. Older clipboard-untouched and 4-ms-per-scalar statements above describe historical builds, not the current insertion path. Czech NVIDIA recognition is a separate unresolved failure.
