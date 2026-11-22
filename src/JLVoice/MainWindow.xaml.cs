@@ -228,8 +228,10 @@ public partial class MainWindow : Window
                     if (down || up)
                     {
                         var action = holdKey.Change(down, !busy && capture is null && !closing);
-                        if (action == HoldAction.Start) PostToUi(() => { if (capture is null) QueueToggle(); });
-                        if (action == HoldAction.Stop) PostToUi(() => { if (capture is not null) QueueToggle(); });
+                        // Cancel/rebind invalidates already queued input intents as well.
+                        var version = holdKey.Version;
+                        if (action == HoldAction.Start) PostToUi(() => { if (version == holdKey.Version && capture is null) QueueToggle(); });
+                        if (action == HoldAction.Stop) PostToUi(() => { if (version == holdKey.Version && capture is not null) QueueToggle(); });
                     }
                     return new IntPtr(1);
                 }

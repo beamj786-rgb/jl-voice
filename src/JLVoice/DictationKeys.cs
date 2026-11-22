@@ -18,6 +18,7 @@ internal enum HoldAction { None, Start, Stop }
 internal sealed class HoldKeyState
 {
     private bool held, armed;
+    internal int Version { get; private set; }
     internal HoldAction Change(bool down, bool canStart)
     {
         if (down)
@@ -29,6 +30,6 @@ internal sealed class HoldKeyState
         var stop = held && armed; held = armed = false;
         return stop ? HoldAction.Stop : HoldAction.None;
     }
-    internal void Disarm() => armed = false;
-    internal void Reset() => held = armed = false;
+    internal void Disarm() { armed = false; ++Version; }
+    internal void Reset() { held = armed = false; ++Version; }
 }
