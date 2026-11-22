@@ -1,0 +1,61 @@
+name: NVIDIA model probes (development only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-probes:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.404'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Developer-only pinned CPU benchmark dependencies
+        run: python -m pip install sherpa-onnx==1.12.40 psutil==7.2.2
+      - name: Public paired fixtures and integrity-pinned local model
+        shell: pwsh
+        run: |
+          python benchmarks/fetch_public.py --output artifacts/public-corpus
+          if ($LASTEXITCODE -ne 0) { throw 'Public fixture fetch failed.' }
+          python benchmarks/fetch_parakeet.py --output artifacts/parakeet-model
+          if ($LASTEXITCODE -ne 0) { throw 'Parakeet model verification failed.' }
+      - name: Real local Parakeet CPU quality probe
+        shell: pwsh
+        run: |
+          python benchmarks/parakeet.py --model artifacts/parakeet-model/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8 --corpus artifacts/public-corpus/corpus.json --repeats 2 --output artifacts/parakeet-windows.json
+          if ($LASTEXITCODE -ne 0) { throw 'Local Parakeet inference failed.' }
+      - name: Self-contained Windows cloud test kit (no API request in CI)
+        shell: pwsh
+        run: |
+          dotnet publish tools/JLVoice.NvidiaProbe -c Release -r win-x64 --self-contained true -o artifacts/NvidiaCloudTest
+          if ($LASTEXITCODE -ne 0) { throw 'Cloud test kit publish failed.' }
+          & ./artifacts/NvidiaCloudTest/JLVoice.NvidiaProbe.exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Cloud test kit contract tests failed.' }
+          Copy-Item artifacts/public-corpus artifacts/NvidiaCloudTest/public-corpus -Recurse
+          Copy-Item docs/NVIDIA-PROBE.md artifacts/NvidiaCloudTest/README.md
+          Copy-Item LICENSE artifacts/NvidiaCloudTest/LICENSE.txt
+          @{ source_commit = (git rev-parse HEAD); cloud_api_executed_in_ci = $false; local_parakeet_executed = $true; release = $false; signed = $false } | ConvertTo-Json | Set-Content artifacts/NvidiaCloudTest/BUILD-INFO.json -Encoding utf8NoBOM
+          Get-ChildItem artifacts/NvidiaCloudTest -Recurse -File | ForEach-Object {
+            @{ path = [IO.Path]::GetRelativePath("$pwd/artifacts/NvidiaCloudTest", $_.FullName); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          } | ConvertTo-Json | Set-Content artifacts/NvidiaCloudTest/SHA256SUMS.json -Encoding utf8NoBOM
+      - name: Local measurements and public provenance only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NVIDIA-local-CPU-evidence
+          path: |
+            artifacts/parakeet-windows.json
+            artifacts/public-corpus/corpus.json
+          retention-days: 7
+      - name: Owner-requested Windows cloud test kit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: JLVoice-NVIDIA-Cloud-Test-Windows-x64
+          path: artifacts/NvidiaCloudTest/
+          if-no-files-found: error
+          retention-days: 7

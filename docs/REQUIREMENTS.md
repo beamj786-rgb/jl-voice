@@ -37,3 +37,7 @@ Measure actual CPU-only RTF, stop-to-text-insertion latency, cold and warm start
 - [ ] Redistribution licenses and all packaged components reviewed.
 
 If any gate is unmet, label the limitation and keep optimizing. No fabricated measurements or implied hardware qualification. Numerical quality/latency thresholds need explicit acceptance against the real corpus; previous aspirational idle CPU of 0–1% and unloaded idle RAM below 200 MB remain goals, not measured capabilities.
+
+## Authorized NVIDIA evaluation exception — 2026-11-22
+
+The owner explicitly authorized comparison of NVIDIA cloud endpoints and local Parakeet for speed and transcript quality. This permits an opt-in, separate development test with an owner-supplied API key and public reference recordings. It does not make cloud access, a user account, a paid API, Python, a GPU or telemetry a requirement of the JL Voice desktop app. Do not silently send ordinary dictation to the cloud or change the app's offline default. Cloud requests/latency must be measured, not inferred from mocks or local model results. Keys must never enter source, command-line arguments, CI logs, reports or chat.

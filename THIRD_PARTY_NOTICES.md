@@ -12,3 +12,5 @@ This file is an inventory for development, not a completed redistribution cleara
 - JL Automation Orbit marks/app icon — owner-supplied brand assets from the owner's agency repository, pinned source commit documented in `assets/brand/source.json`. SVGs are preserved; PNG/ICO derivatives retain their colours and shape. Brand assets are not relicensed as application source.
 
 No code or assets from Wispr Flow or `az9713/wispr-flow-rea-teardown` are included. The owner approved MIT for the original JL Voice source on 2026-11-22; see LICENSE and LICENSE-SCOPE.md. Existing third-party/font licenses and reserved brand artwork remain separate. This does not assert whole-bundle Foundation eligibility.
+
+NVIDIA evaluation tools only: Parakeet TDT 0.6B v3 weights (NVIDIA/contributors, CC-BY-4.0) and sherpa-onnx 1.12.40 (Apache-2.0). The integrity-pinned INT8 archive is fetched by developer tooling and is not included in the cloud test kit or ordinary JL Voice package. Hosted NVIDIA NIM model/API terms are separate; see docs/NVIDIA-PROBE.md.
