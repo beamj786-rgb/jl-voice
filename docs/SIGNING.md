@@ -107,3 +107,13 @@ runtime/whisper.dll
 ```
 
 CI explicitly rejected the unsigned package, a missing certificate and a temporary self-signed test identity, verified unchanged package integrity after rejection, and repeated finalization with consistent hashes and no manifest self-entry. This proves the preparation and negative checks only. There is no signed, SAC-qualified Windows ZIP yet. The owner’s distribution/certificate choice and real publisher enrollment remain required.
+
+## Owner-selected route — portable ZIP
+
+The owner selected ZIP distribution after reviewing the paid certificate versus Microsoft Store options. This selects the distribution direction; it is not purchase authorization. No Store migration, source-license change, certificate enrollment or payment is authorized by that selection.
+
+The live Certum product selector was checked for **Standard Code Signing in the Cloud → 1 year → quantity 1**. The product page displayed **EUR 209 gross / EUR 209 net**. This is a product-page quote, not a completed checkout total; tax, billing-country treatment and purchase conditions still need confirmation before ordering. The code-signing certificate supports natural-person data; activation requires the provider's identity/address verification and SimplySign setup. Use the provider's own secure process, never chat, for identity documents or signing credentials.
+
+Verified product page: https://shop.certum.eu/standard-code-signing-in-the-cloud.html?___store=certum_en . The selected validity is page state, not encoded in the public URL.
+
+An attempt to add this item to a non-binding cart was rejected by automatic approval review because this purchase-related action lacked explicit authorization. No item was added, account created or payment made. Explicit permission was requested for cart preparation only. Enrollment agreements and any final payment remain separate, concrete approval steps. Until an issued signing identity is available and the resulting signed build passes the enabled-policy test, dictation remains blocked on the owner's Smart App Control machine.
