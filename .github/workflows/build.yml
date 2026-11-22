@@ -142,12 +142,12 @@ jobs:
             python benchmarks/fetch_model.py --model $m --output artifacts/models | Tee-Object -Append artifacts/model-provenance.jsonl
             if ($LASTEXITCODE -ne 0) { throw "Model fetch failed: $m" }
           }
-          python benchmarks/fetch_public.py --output artifacts/stt-corpus --count 10 --controls
+          python benchmarks/fetch_public.py --output artifacts/stt-corpus --count 10 --controls --long
           if ($LASTEXITCODE -ne 0) { throw 'Public corpus fetch failed.' }
       - name: Paired decoding experiment
         shell: pwsh
         run: |
-          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --only small --only turbo+short --only turbo
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --only small --only small+norm --only turbo+short --only turbo+norm+short --only turbo
           if ($LASTEXITCODE -ne 0) { throw 'Experiment failed.' }
           Copy-Item artifacts/model-provenance.jsonl, artifacts/stt-corpus/corpus.json artifacts/stt-experiment/
       - name: Upload experiment results (no audio)

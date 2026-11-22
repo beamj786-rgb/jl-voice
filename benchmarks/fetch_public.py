@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--output', required=True, type=pathlib.Path)
     parser.add_argument('--count', type=int, default=3, help='clips per language (shortest unique prompts >= 3 s)')
     parser.add_argument('--controls', action='store_true', help='add synthetic silence/noise clips with empty references')
+    parser.add_argument('--long', action='store_true', help='add ~20 s and up to 85 s concatenations of the selected clips per language')
     args = parser.parse_args()
     if not 1 <= args.count <= 40: parser.error('--count must be 1..40')
     args.output.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,27 @@ def main():
                 print('Fetched public fixture', language, name, flush=True)
                 if not wanted: break
         if wanted: raise ValueError('Selected source recordings missing')
+        if args.long:
+            # Same speech as the short clips, joined in selection order with 0.4 s digital silence,
+            # to check omissions/repetitions on longer dictation. Reference = joined references.
+            clips = [r for r in rows if r['language'] == language and 'group' not in r]
+            gap = bytes(int(16000 * 0.4) * 2)
+            for name, limit in (('long20', 20.0), ('longmax', 85.0)):
+                pcm, refs, seconds = bytearray(), [], 0.0
+                for clip in clips:
+                    with wave.open(str(args.output / clip['audio'])) as f: frames = f.readframes(f.getnframes())
+                    length = len(frames) / 32000
+                    if refs and seconds + 0.4 + length > limit: break
+                    if refs: pcm.extend(gap); seconds += 0.4
+                    pcm.extend(frames); seconds += length; refs.append(clip['reference'])
+                    if name == 'long20' and seconds >= 18.0: break
+                output = io.BytesIO()
+                with wave.open(output, 'wb') as wav:
+                    wav.setnchannels(1); wav.setsampwidth(2); wav.setframerate(16000); wav.writeframes(pcm)
+                data = output.getvalue(); audio = f'{language}-{name}.wav'; (args.output / audio).write_bytes(data)
+                rows.append(dict(id=f'{language}-{name}', language=language, group=f'{language}-long', audio=audio,
+                    reference=' '.join(refs), seconds=round(seconds, 2), parts=len(refs),
+                    audio_sha256=hashlib.sha256(data).hexdigest(), source_file='concatenation of selected clips'))
     if args.controls:
         # Deterministic synthetic controls: any words recognized here are hallucinations.
         import random
@@ -82,6 +104,6 @@ def main():
     (args.output/'corpus.json').write_text(json.dumps(dict(dataset='google/fleurs', revision=REVISION, split='dev', license='CC-BY-4.0',
         attribution='FLEURS: Few-shot Learning Evaluation of Universal Representations of Speech, Google and contributors; https://huggingface.co/datasets/google/fleurs',
         conversion='16 kHz mono IEEE float32 -> PCM16; round(value*32768), clamp to signed int16; no resampling',
-        selection=f'{args.count} shortest unique prompt IDs per language with >=3 seconds; read speech, not dictation' + ('; plus synthetic silence/noise controls' if args.controls else ''), samples=rows), ensure_ascii=False, indent=2), encoding='utf-8')
+        selection=f'{args.count} shortest unique prompt IDs per language with >=3 seconds; read speech, not dictation' + ('; plus synthetic silence/noise controls' if args.controls else '') + ('; plus long concatenations' if args.long else ''), samples=rows), ensure_ascii=False, indent=2), encoding='utf-8')
 
 if __name__ == '__main__': main()

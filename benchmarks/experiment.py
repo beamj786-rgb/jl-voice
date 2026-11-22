@@ -51,14 +51,18 @@ def main():
         ids = [(r['id'], r['mode'], r['audio_sha256']) for r in report['samples']]
         if identity is not None and ids != identity: raise RuntimeError('Configurations did not use identical audio')
         identity = ids
-        speech = [r for r in report['samples'] if r['group'] != 'control']
+        speech = [r for r in report['samples'] if r['group'] in ('cs', 'en')]
         summary.append(dict(config=name, model=model, status='complete', groups=report['groups'],
             median_inference_ms=statistics.median(r['inference_ms'] for r in speech),
             median_rtf=statistics.median(r['rtf'] for r in speech),
             max_worker_wall_s=max(r['transcription_wall_seconds'] for r in speech),
             os_peak_worker_rss_bytes=max((r['os_peak_worker_rss_bytes'] or 0) for r in report['samples']) or None,
             detected_language_mismatches=sum(r['detected_language'] != r['mode'] for r in speech),
-            texts={f"{r['id']}/{r['mode']}": r['text'] for r in report['samples']}))
+            samples=[dict(id=r['id'], mode=r['mode'], audio_seconds=round(r['audio_seconds'], 2), inference_ms=round(r['inference_ms']),
+                          wall_s=round(r['transcription_wall_seconds'], 2), rtf=round(r['rtf'], 3), audio_ctx=r.get('audio_ctx'),
+                          peak_rss_bytes=r['os_peak_worker_rss_bytes'], detected=r['detected_language'],
+                          words=r['score']['words'], sub=r['score']['substitutions'], dele=r['score']['deletions'], ins=r['score']['insertions'],
+                          chars=r['score']['characters'], char_errors=r['score']['character_errors'], text=r['text']) for r in report['samples']]))
     meta = json.loads(args.corpus.read_text(encoding='utf-8'))
     (args.output / 'summary.json').write_text(json.dumps(dict(corpus=dict((k, meta[k]) for k in ('dataset', 'revision', 'split', 'selection')),
         references={s['id']: s['reference'] for s in meta['samples']}, results=summary, cpu_only=True, threads=2,
@@ -71,10 +75,13 @@ def main():
         groups = row.get('groups', {})
         fmt = lambda g, k: f"{groups[g][k]:.3f}" if g in groups and groups[g].get(k) is not None else 'n/a'
         print(f"{row['config']:28} cs WER {fmt('cs/cs','wer')} CER {fmt('cs/cs','cer')} | en WER {fmt('en/en','wer')} CER {fmt('en/en','cer')} "
+              f"| cs-long WER {fmt('cs-long/cs','wer')} CER {fmt('cs-long/cs','cer')} | en-long WER {fmt('en-long/en','wer')} "
               f"| ctrl halluc {groups.get('control/cs', {}).get('hallucinated_words', 'n/a')} | med inf {row.get('median_inference_ms', 'n/a')} ms | {row['status']}")
     # Content-free metrics plus public-corpus/control texts, printed because artifact storage may be unreachable.
     for row in summary:
         print('EXPERIMENT_DETAIL ' + json.dumps({k: row.get(k) for k in ('config', 'status', 'median_inference_ms', 'median_rtf', 'max_worker_wall_s',
-              'os_peak_worker_rss_bytes', 'detected_language_mismatches', 'texts')}))  # ASCII: Windows console is not UTF-8
+              'os_peak_worker_rss_bytes', 'detected_language_mismatches', 'groups')}))  # ASCII: Windows console is not UTF-8
+        for sample in row.get('samples', []):
+            print('EXPERIMENT_SAMPLE ' + json.dumps(dict(config=row['config'], **sample)))
 
 if __name__ == '__main__': main()
