@@ -47,11 +47,13 @@ jobs:
       - name: Public English fixture through real CPU worker
         shell: pwsh
         run: |
+          dotnet run --project tests/JLVoice.CoreChecks -c Release -- --roundtrip vendor/whisper.cpp/samples/jfk.wav artifacts/capture-roundtrip.wav
+          if ($LASTEXITCODE -ne 0) { throw 'Capture WAV serialization failed.' }
           $env:PYTHONPATH = "$pwd/benchmarks"
           @'
           from pathlib import Path
           from run import run_sample
-          result = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve(), Path('vendor/whisper.cpp/samples/jfk.wav').resolve(), 'en', 2)
+          result = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve(), Path('artifacts/capture-roundtrip.wav').resolve(), 'en', 2)
           assert 'country' in result['text'].lower()
           print('Public English fixture passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
           '@ | python -

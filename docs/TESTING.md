@@ -39,6 +39,14 @@ Use non-sensitive sample text. No audio or transcript history is saved by defaul
 
 Automatic insertion preserves the existing clipboard. Elevated apps may block simulated input. If insertion is blocked or partial, inspect the destination and retained result before retrying.
 
+## Diagnose garbled recognition before comparing models
+
+If Windows Sound Recorder is clear but JL Voice produces broken words or repeated characters, open **Settings → Advanced options → Play recording before transcription (audio check)**. In Czech: **Nastavení → Pokročilé možnosti → Před přepisem přehrát nahrávku (test zvuku)**. This is opt-in for the current app session only and is off after relaunch. Save any microphone/language changes as usual, return to Notepad, then dictate one non-sensitive sentence normally.
+
+After releasing the dictation key, the microphone stops. JL Voice plays the exact in-memory WAV it is about to send to the model through the default Windows playback device, then transcribes it using the same worker/model/settings as normal dictation. No audio file is saved or uploaded. Escape cancels playback/transcription; owned playback is disposed on cancellation or exit. The normal microphone and model are not opened while idle. Playback adds the recording's duration to end-to-end latency; disable the check for normal latency measurements.
+
+Compare (1) the audible recording, (2) **Last transcript** inside JL Voice and (3) the destination text. Clear playback with a poor retained transcript isolates recognition from insertion; a correct retained transcript with damaged destination text points to insertion. Garbled playback points to capture/device selection, even if another recorder sounds clear. These observations narrow the diagnosis but do not establish the exact root cause. Report the three observations and the selected microphone/language; sharing audio is optional.
+
 ## Resource and responsiveness check
 
 Record Windows version, CPU model, installed RAM, display scaling, app source commit and model from `BUILD-INFO.json`. Specify whether other desktop applications are running. A discrete GPU must not be required; ASR and this preview's WPF rendering are configured for CPU execution.

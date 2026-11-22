@@ -38,9 +38,16 @@ internal sealed class AudioCapture : IDisposable
         byte[] bytes;
         lock (gate) bytes = pcm.ToArray();
         if (bytes.Length < 16000) throw new InvalidDataException("Recording is too short (minimum 0.5 seconds).");
+        try { return EncodePcm(bytes); }
+        finally { Array.Clear(bytes); }
+    }
+    internal static byte[] EncodePcm(byte[] bytes)
+    {
+        if (bytes.Length < 16000 || bytes.Length > MaxBytes || bytes.Length % 2 != 0)
+            throw new InvalidDataException("Expected 0.5 to 90 seconds of mono 16 kHz 16-bit PCM.");
         using var wav = new MemoryStream();
-        using (var writer = new WaveFileWriter(new NAudio.Utils.IgnoreDisposeStream(wav), input.WaveFormat)) writer.Write(bytes, 0, bytes.Length);
-        Array.Clear(bytes);
+        using (var writer = new WaveFileWriter(new NAudio.Utils.IgnoreDisposeStream(wav), new WaveFormat(16000, 16, 1)))
+            writer.Write(bytes, 0, bytes.Length);
         return wav.ToArray();
     }
     public void Dispose()

@@ -41,6 +41,7 @@ public partial class MainWindow
             states.Add(new { name, width = ActualWidth, height = ActualHeight, language = locale, theme = ThemeName, settings = preferencesOpen });
         }
         if (!Appearance.FontsLoaded) issues.Add("Bundled font loading failed.");
+        if (ReviewAudio.IsChecked == true) issues.Add("Audio playback check must be opt-in and off on startup.");
         Navigate(true); ShortcutKey.SelectedValue = 0x78; PushToTalk.IsChecked = false;
         InvokeButton(SaveButton); await SettleAsync();
         if (settings.Key != 0x78 || settings.PushToTalk || !PushToTalk.IsEnabled) issues.Add("F9 toggle selection did not round-trip through settings.");

@@ -149,6 +149,8 @@ public partial class MainWindow : Window
         UpdateShortcutMode();
         IdleBubble.Content = T("Zobrazovat bublinu i v klidu", "Show the bubble when idle"); Advanced.Header = T("Pokročilé možnosti", "Advanced options");
         ModelHelp.Text = T("Automatický jazyk a kvalita modelů se zatím ověřují.", "Automatic detection and model quality are still being evaluated.");
+        ReviewAudio.Content = T("Před přepisem přehrát nahrávku (test zvuku)", "Play recording before transcription (audio check)");
+        ReviewAudio.ToolTip = T("Dočasně pro toto spuštění. Přehraje přesně zvuk posílaný modelu. Nic se neukládá; po přepisu se zvuk uvolní. Zrušení: Escape.", "For this session only. Plays the exact audio sent to the model. Nothing is saved; audio is released after transcription. Cancel with Escape.");
         SaveButton.Content = T("Uložit", "Save changes"); BackToWorkButton.Content = T("Zpět k práci", "Back to work");
         EmptyResultText.Text = T("Poslední přepis se objeví tady.", "Your last transcript will appear here."); ResultHeading.Text = T("Poslední přepis", "Last transcript");
         CopyButton.Content = T("Kopírovat", "Copy"); ClearButton.Content = T("Vymazat", "Clear");
@@ -292,6 +294,12 @@ public partial class MainWindow : Window
         try
         {
             wav = await audioSession.StopAsync(); audioSession.Dispose();
+            if (ReviewAudio.IsChecked == true)
+            {
+                SetStatus(T("Přehrávám zachycený zvuk…", "Playing captured audio…"));
+                await AudioPlayback.PlayAsync(wav, cts.Token);
+                SetStatus(T("Přepisuji…", "Transcribing…"));
+            }
             var text = await AsrEngine.TranscribeAsync(wav, settings, cts.Token); ResultText.Text = text;
             WindowsInput.Insert(text, target); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);

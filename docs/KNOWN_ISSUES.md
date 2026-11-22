@@ -4,6 +4,7 @@
 
 - Hosted Windows CI passes native CPU package creation, five PCM checks, ten scoring/native-boundary tests, public-English-fixture inference and tray startup. No real microphone, low-end physical hardware or representative language-quality acceptance has run.
 - No complete portable runtime/model package has been executed on a clean offline Windows 11 machine. The packaging script passes on a developer-tool-equipped hosted Windows runner; that does not prove clean-machine acceptance.
+- **Owner speech-quality failure:** a Windows machine that permits startup completed dictation in approximately three seconds, but the owner reported unusable Czech output with repeated characters in Automatic and explicit Czech. The owner reports clear audio in Windows Sound Recorder; the actual JL Voice capture and retained transcript versus inserted text have not yet been compared. Use the opt-in in-memory audio playback check in TESTING.md before attributing this to the model or microphone.
 - Base q5_1 is an unaccepted experimental candidate. Czech, English, punctuation, silence hallucinations and mixed-language accuracy are unknown. Single-recording language switching is not specifically implemented.
 - Recording is bounded to 90 seconds, not arbitrary long-form dictation. Safe chunking and switch-aware processing remain needed.
 - Worker-per-recording unloads the model but adds startup latency. Resident model trade-off has not been measured.

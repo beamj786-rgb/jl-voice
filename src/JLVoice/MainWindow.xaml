@@ -71,6 +71,7 @@
                     <StackPanel Grid.Column="2"><TextBlock x:Name="ThreadsLabel" Style="{StaticResource Muted}" Margin="0,0,0,7"/><ComboBox x:Name="Threads" AutomationProperties.LabeledBy="{Binding ElementName=ThreadsLabel}"/></StackPanel>
                   </Grid>
                   <TextBlock x:Name="ModelHelp" Style="{StaticResource Muted}" Margin="0,9,0,0"/>
+                  <CheckBox x:Name="ReviewAudio" Margin="0,14,0,0"/>
                 </StackPanel>
               </Expander>
               <DockPanel Margin="0,18,0,0">
