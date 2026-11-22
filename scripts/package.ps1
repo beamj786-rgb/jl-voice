@@ -53,9 +53,6 @@ Copy-Item "$root/docs/KNOWN_ISSUES.md" "$output/KNOWN_ISSUES.md"
 Copy-Item "$root/scripts/check-package.ps1" "$output/Check-Package.ps1"
 $sourceCommit = git -C $root rev-parse HEAD
 Check-Exit
-$workerSignature = Get-AuthenticodeSignature -LiteralPath "$output/runtime/JLVoiceAsr.exe"
-@{ source_commit=$sourceCommit; worker_signature_status=$workerSignature.Status.ToString(); smart_app_control_qualified=$false; built_utc=[DateTime]::UtcNow.ToString('o'); model=$Model; runtime='win-x64'; framework='WPF'; profile='CPU-only development test'; release=$false } | ConvertTo-Json | Set-Content "$output/BUILD-INFO.json" -Encoding utf8NoBOM
-Get-ChildItem $output -Recurse -File | ForEach-Object {
-    [pscustomobject]@{ path=$_.FullName.Substring($output.Length+1); sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
-} | ConvertTo-Json | Set-Content "$output/SHA256SUMS.json" -Encoding utf8NoBOM
+@{ source_commit=$sourceCommit; smart_app_control_qualified=$false; built_utc=[DateTime]::UtcNow.ToString('o'); model=$Model; runtime='win-x64'; framework='WPF'; profile='CPU-only development test'; release=$false } | ConvertTo-Json | Set-Content "$output/BUILD-INFO.json" -Encoding utf8NoBOM
+& "$PSScriptRoot/finalize-package.ps1" -PackageDirectory $output
 Write-Output "Development package created: $output. Windows acceptance testing is still required."

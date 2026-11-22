@@ -33,6 +33,9 @@ jobs:
       - name: Verify portable package integrity helper
         shell: powershell
         run: ./artifacts/JLVoice/Check-Package.ps1
+      - name: Signature inventory and fail-closed signing preparation
+        shell: pwsh
+        run: ./tests/package-signing.ps1 -PackageDirectory ./artifacts/JLVoice
       - name: Scoring and native audio boundary checks
         shell: pwsh
         run: |
@@ -65,6 +68,8 @@ jobs:
           path: |
             artifacts/ui-review/
             artifacts/ci-idle.json
+            artifacts/JLVoice/SIGNATURES.json
+            artifacts/JLVoice/BUILD-INFO.json
           if-no-files-found: warn
           retention-days: 7
       - name: Owner-requested portable development test package

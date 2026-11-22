@@ -28,7 +28,7 @@ Automatic mode currently uses upstream language detection for the recording, **n
 
 ## Try a Windows test build
 
-An owner/developer can manually run **Actions → Development build checks → Run workflow**, enable **Upload a portable Windows test package after checks pass**, and download `JLVoice-Windows-x64-test` from the successful run. Extract the whole artifact into a new writable folder and launch `JLVoice.exe`. The runtime, CPU worker, model and fonts are included; no SDK, Python or separate model installation is needed. This is an unsigned temporary development artifact, not a production release. Ordinary pushes upload only UI/measurement evidence.
+An owner/developer can manually run **Actions → Development build checks → Run workflow**, enable **Upload a portable Windows test package after checks pass**, and download `JLVoice-Windows-x64-test` from the successful run. Extract the whole artifact into a new writable folder and launch `JLVoice.exe`. The runtime, CPU worker, model and fonts are included; no SDK, Python or separate model installation is needed. This is an unsigned temporary development artifact, not a production release. Ordinary pushes upload only UI/measurement and public signature-inventory evidence. Developer signing/finalization tools are prepared, but no real signing identity has been provisioned; see the [signing routes and status](docs/SIGNING.md#owner-decision-needed-private-individual-publisher).
 
 See [the portable testing guide](docs/TESTING.md) for Czech/English/mixed-speech checks, bubble/cancellation/focus tests, offline verification and a short bug report template. Testing on a 16 GB PC does not qualify the primary 8 GB target.
 
