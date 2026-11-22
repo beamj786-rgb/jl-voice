@@ -33,7 +33,7 @@ if (-not (Test-Path $cached)) {
 if ((Get-FileHash $cached -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256) { throw 'Cached model hash mismatch.' }
 Copy-Item $cached "$output/models/$Model"
 # Tell the app which bundled candidate this package contains.
-@{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$false; Key=120 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
+@{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
 Copy-Item "$vendor/LICENSE" "$output/licenses/whisper.cpp-MIT.txt"
 Copy-Item "$root/THIRD_PARTY_NOTICES.md" "$output/licenses/"
 Copy-Item "$root/licenses/*" "$output/licenses/"

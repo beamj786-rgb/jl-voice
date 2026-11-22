@@ -25,7 +25,7 @@ jobs:
           python-version: '3.12'
       - name: Developer benchmark dependencies
         run: python -m pip install -r benchmarks/requirements.txt
-      - name: PCM level and meter checks
+      - name: PCM meter and hold-key checks
         run: dotnet run --project tests/JLVoice.CoreChecks -c Release
       - name: Build self-contained CPU package (not a release)
         shell: pwsh

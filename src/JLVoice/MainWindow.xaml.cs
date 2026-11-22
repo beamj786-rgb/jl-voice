@@ -16,10 +16,11 @@ public partial class MainWindow : Window
 {
     private Settings settings;
     private readonly bool reviewMode;
-    private bool binding = true, preferencesOpen, busy, closing, keyHeld, cancelRegistered;
+    private bool binding = true, preferencesOpen, busy, closing, cancelRegistered;
     private bool? idleBubbleOverride;
     private readonly VoiceBubble bubble = new();
     private readonly DispatcherTimer recordingTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private readonly HoldKeyState holdKey = new();
     private readonly Stopwatch recordingTime = new();
     private readonly List<string> modelFiles = [];
     private AudioCapture? capture;
@@ -32,7 +33,7 @@ public partial class MainWindow : Window
     private readonly uint taskbarCreated = TrayIcon.RegisterWindowMessage("TaskbarCreated");
     private string locale = "cs";
     private const int CancelHotkeyId = 2;
-    private string Shortcut => settings.PushToTalk ? $"F{settings.Key - 0x6F}" : $"Ctrl + Alt + F{settings.Key - 0x6F}";
+    private string Shortcut => settings.PushToTalk ? DictationKeys.Name(settings.Key) : $"Ctrl + Alt + {DictationKeys.Name(settings.Key)}";
     private string T(string cs, string en) => locale == "cs" ? cs : en;
     public MainWindow(bool review = false)
     {
@@ -42,7 +43,8 @@ public partial class MainWindow : Window
         locale = settings.UiLanguage;
         InitializeComponent(); Icon = BitmapFrame.Create(new Uri(Path.Combine(AppContext.BaseDirectory, "assets", "brand", "JLVoice.ico")));
         DictationLanguage.ItemsSource = new[] { "", "Čeština", "English" }; DictationLanguage.SelectedIndex = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
-        ShortcutKey.ItemsSource = new[] { "F9", "F10", "F11", "F12" }; ShortcutKey.SelectedIndex = settings.Key - 0x78;
+        ShortcutKey.DisplayMemberPath = nameof(DictationKey.Name); ShortcutKey.SelectedValuePath = nameof(DictationKey.Code);
+        ShortcutKey.ItemsSource = DictationKeys.Options; ShortcutKey.SelectedValue = settings.Key;
         PushToTalk.IsChecked = settings.PushToTalk; IdleBubble.IsChecked = settings.ShowIdleBubble;
         Theme.ItemsSource = new[] { "", "", "" }; Theme.SelectedIndex = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };
         UiLanguage.ItemsSource = new[] { "Čeština", "English" }; UiLanguage.SelectedIndex = locale == "en" ? 1 : 0;
@@ -51,6 +53,8 @@ public partial class MainWindow : Window
         Model.SelectedIndex = Math.Max(0, modelFiles.IndexOf(settings.Model)); Threads.ItemsSource = new[] { "1", "2" }; Threads.SelectedIndex = settings.Threads - 1;
         RefreshMicrophones();
         foreach (var control in new[] { DictationLanguage, Microphone, ShortcutKey, Model, Threads, Theme, UiLanguage }) control.SelectionChanged += (_, _) => MarkPending();
+        ShortcutKey.SelectionChanged += (_, _) => UpdateShortcutMode();
+        UpdateShortcutMode();
         PushToTalk.Checked += (_, _) => MarkPending(); PushToTalk.Unchecked += (_, _) => MarkPending();
         IdleBubble.Checked += (_, _) => MarkPending(); IdleBubble.Unchecked += (_, _) => MarkPending();
         Advanced.Expanded += (_, _) => AdjustSize(); Advanced.Collapsed += (_, _) => AdjustSize();
@@ -119,6 +123,15 @@ public partial class MainWindow : Window
         if (reviewMode || !IsInitialized) return;
         Height = Math.Min(SystemParameters.WorkArea.Height - 30, preferencesOpen ? Advanced.IsExpanded ? 760 : 650 : string.IsNullOrEmpty(ResultText.Text) ? 430 : 620);
     }
+    private void UpdateShortcutMode()
+    {
+        var caps = ShortcutKey.SelectedValue is int code && code == DictationKeys.CapsLock;
+        if (caps) PushToTalk.IsChecked = true;
+        PushToTalk.IsEnabled = !caps;
+        ShortcutHelp.Text = caps
+            ? T("Držte Caps Lock a mluvte. Uvolněním spustíte přepis. Velká písmena se nepřepínají.", "Hold Caps Lock to speak. Release to transcribe. Letter case is not toggled.")
+            : T("Přepínání: Ctrl + Alt + klávesa. Při držení stačí samotná klávesa.", "Toggle: Ctrl + Alt + key. Hold mode uses the key alone.");
+    }
     private void MarkPending() { if (!binding) PendingText.Text = T("Neuložené změny", "Unsaved changes"); }
     private void Localize()
     {
@@ -133,7 +146,7 @@ public partial class MainWindow : Window
         KeyLabel.Text = T("Klávesa", "Shortcut key"); ThemeLabel.Text = T("Vzhled", "Appearance"); UiLanguageLabel.Text = T("Jazyk rozhraní", "Interface language");
         ModelLabel.Text = T("Model v balíčku", "Bundled model"); ThreadsLabel.Text = T("CPU vlákna", "CPU threads");
         RefreshButton.Content = T("Obnovit", "Refresh"); PushToTalk.Content = T("Držet klávesu pro nahrávání", "Hold key to record");
-        ShortcutHelp.Text = T("Přepínání: Ctrl + Alt + klávesa. Při držení stačí samotná klávesa.", "Toggle: Ctrl + Alt + key. Hold mode uses the key alone.");
+        UpdateShortcutMode();
         IdleBubble.Content = T("Zobrazovat bublinu i v klidu", "Show the bubble when idle"); Advanced.Header = T("Pokročilé možnosti", "Advanced options");
         ModelHelp.Text = T("Automatický jazyk a kvalita modelů se zatím ověřují.", "Automatic detection and model quality are still being evaluated.");
         SaveButton.Content = T("Uložit", "Save changes"); BackToWorkButton.Content = T("Zpět k práci", "Back to work");
@@ -189,7 +202,7 @@ public partial class MainWindow : Window
         try
         {
             var next = settings with { Language = DictationLanguage.SelectedIndex switch { 1 => "cs", 2 => "en", _ => "auto" }, Microphone = Microphone.SelectedIndex,
-                PushToTalk = PushToTalk.IsChecked == true, Key = 0x78 + ShortcutKey.SelectedIndex, ShowIdleBubble = IdleBubble.IsChecked == true,
+                PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, ShowIdleBubble = IdleBubble.IsChecked == true,
                 Model = modelFiles[Model.SelectedIndex], Threads = Threads.SelectedIndex + 1, Theme = ThemeName, UiLanguage = locale };
             if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
             if (reviewMode || ConfigureShortcut()) { ReadyStatus(); ResetBubble(); }
@@ -200,7 +213,7 @@ public partial class MainWindow : Window
     private bool ConfigureShortcut()
     {
         WindowsInput.UnregisterHotKey(handle, WindowsInput.HotkeyId);
-        if (hook != IntPtr.Zero) { WindowsInput.UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } keyHeld = false;
+        if (hook != IntPtr.Zero) { WindowsInput.UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } holdKey.Reset();
         if (!settings.PushToTalk)
         {
             if (!WindowsInput.RegisterHotKey(handle, WindowsInput.HotkeyId, 0x4000 | 1 | 2, (uint)settings.Key)) { Notify(T("Zkratka je obsazená. Zvolte jinou klávesu.", "Shortcut unavailable. Choose another key.")); return false; }
@@ -212,8 +225,12 @@ public partial class MainWindow : Window
                 if (code >= 0 && Marshal.ReadInt32(data) == settings.Key && (Marshal.ReadInt32(data, 8) & 0x10) == 0)
                 {
                     var down = message.ToInt64() is 0x100 or 0x104; var up = message.ToInt64() is 0x101 or 0x105;
-                    if (down && !keyHeld) { keyHeld = true; if (!busy && capture is null) PostToUi(QueueToggle); }
-                    if (up && keyHeld) { keyHeld = false; PostToUi(() => { if (capture is not null) QueueToggle(); }); }
+                    if (down || up)
+                    {
+                        var action = holdKey.Change(down, !busy && capture is null && !closing);
+                        if (action == HoldAction.Start) PostToUi(() => { if (capture is null) QueueToggle(); });
+                        if (action == HoldAction.Stop) PostToUi(() => { if (capture is not null) QueueToggle(); });
+                    }
                     return new IntPtr(1);
                 }
                 return WindowsInput.CallNextHookEx(hook, code, message, data);
@@ -234,7 +251,7 @@ public partial class MainWindow : Window
         if (cancelRegistered) WindowsInput.UnregisterHotKey(handle, CancelHotkeyId); cancelRegistered = false; RefreshBubble();
     }
     private void QueueToggle() { if (!reviewMode && !closing && !busy) activeTask = ToggleAsync(); }
-    private void RequestCancel() { if (cancelTask is null || cancelTask.IsCompleted) cancelTask = CancelAsync(); }
+    private void RequestCancel() { holdKey.Disarm(); if (cancelTask is null || cancelTask.IsCompleted) cancelTask = CancelAsync(); }
     private async Task ToggleAsync()
     {
         if (closing || busy) return;
@@ -252,7 +269,7 @@ public partial class MainWindow : Window
             catch (Exception error) { capture?.Dispose(); capture = null; ExitActive(); Notify(error.Message); }
             return;
         }
-        busy = true; recordingTimer.Stop(); recordingTime.Stop();
+        holdKey.Disarm(); busy = true; recordingTimer.Stop(); recordingTime.Stop();
         bubble.SetProcessing(locale); RefreshBubble(); StatusText.Text = T("Přepisuji…", "Transcribing…"); Diagnostics.Mark("recording_stop_requested");
         var audioSession = capture; capture = null; byte[]? wav = null;
         using var cts = new CancellationTokenSource(); cancellation = cts; var latency = Stopwatch.StartNew();
@@ -273,7 +290,7 @@ public partial class MainWindow : Window
     }
     private async Task FailCaptureAsync(AudioCapture audio, Exception error)
     {
-        busy = true; capture = null; recordingTimer.Stop();
+        holdKey.Disarm(); busy = true; capture = null; recordingTimer.Stop();
         try { await audio.StopAsync(discard: true); } catch { /* Display the original device failure below. */ }
         finally { audio.Dispose(); busy = false; ExitActive(); } Notify(error.Message);
     }

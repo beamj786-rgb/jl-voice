@@ -10,7 +10,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 
 - WPF/XAML tray application without a browser engine; reactive, nonactivating bottom-centre dictation bubble.
 - Static idle capsule, hover shortcut/settings, real PCM audio meter, processing feedback and cancellation with Escape or the bubble. Closing the window keeps it in the tray; Exit shuts it down.
-- Configurable F9–F12 shortcut: Ctrl+Alt+key toggles recording, or hold the selected key for push-to-talk.
+- Hold Caps Lock to record and release to transcribe (fresh-install default). The key is consumed while configured, preserving its previous letter-case state. F9–F12 remain selectable for hold or Ctrl+Alt+key toggle mode; existing saved shortcuts are preserved.
 - Microphone selection; mono 16 kHz PCM capture only during explicit recording, bounded to 90 seconds per recording in this preview.
 - Czech, English, and experimental Automatic language selection.
 - Isolated, below-normal-priority native whisper.cpp CPU worker with at most two inference threads, GPU explicitly disabled, five-minute timeout and cancellation.
@@ -43,7 +43,7 @@ pwsh scripts/package.ps1
 
 `artifacts/JLVoice` is a self-contained portable folder, including the CPU runtime and multilingual model. Do not distribute it until licenses, clean-machine/offline operation and the [acceptance checklist](docs/REQUIREMENTS.md) pass. The development package downloads dependencies only at build time. The application contains no model downloader, cloud ASR, account system or telemetry.
 
-Launch `JLVoice.exe`, focus a text field and use Ctrl+Alt+F9. The bottom-centre bubble can also start/stop recording; hovering reveals settings. Double-click the tray icon to open the main window. Escape cancels active dictation. Closing/minimizing keeps the app in the tray; use Exit in the tray menu to quit. Keep the portable folder writable for settings. Elevated applications and some input controls may reject synthesized input; inspect the retained result rather than blindly retrying partial insertion.
+Launch `JLVoice.exe`, focus a text field, hold Caps Lock to speak and release it to transcribe. Existing saved shortcuts keep their previous binding. The bottom-centre bubble can also start/stop recording; hovering reveals settings. Double-click the tray icon to open the main window. Escape cancels active dictation. Closing/minimizing keeps the app in the tray; use Exit in the tray menu to quit. Keep the portable folder writable for settings. Elevated applications and some input controls may reject synthesized input; inspect the retained result rather than blindly retrying partial insertion.
 
 The three candidate models can be packaged with `-Model ggml-base-q5_1.bin`, `ggml-base-q8_0.bin`, or `ggml-small-q5_1.bin`. Packaging a larger candidate is an explicit developer choice, not an automatic RAM-based upgrade.
 
