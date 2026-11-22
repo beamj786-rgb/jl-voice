@@ -26,3 +26,9 @@ Tento ZIP není podepsaný ani produkční release. Pokud Windows zablokuje JLVo
 Core checks testují HTTP přes paměťovou simulaci: žádný požadavek bez souhlasu, jazyka a platného formátu klíče; HTTPS multipart/WAV; odpověď s diakritikou; 401/403/429/přesměrování/chyby služby; limity odpovědi; zrušení; žádný automatický retry. Windows desktop checks testují izolované falešné pověření a jeho odstranění. WPF review ověřuje výchozí offline režim, validační brány, výběr poskytovatele, odvolání souhlasu, zapomenutí klíče a světlé/tmavé nastavení. Review má zakázaný přepis a nepoužívá skutečný klíč ani síť.
 
 Živá integrace mikrofon → NVIDIA → Notepad/prohlížeč se musí ověřit uživatelem. Skutečný endpoint byl dosud testován uživatelem přes CLI na šesti veřejných CZ/EN vzorcích; výsledek není kvalifikací přesnosti ani 8GB hardwaru. Příslušný stav CI a případné chyby musí být uvedeny při předání ZIPu.
+
+## Výsledek ověření 22. 11. 2026
+
+Windows CI pro zdroj `2764fe750002993cb6a2a9ad758f0baae492fd08` [prošlo](https://github.com/beamj786-rgb/jl-voice/actions/runs/45061431829). Prošly core/mock HTTP kontroly, izolované Windows Credential Manager round-trip/odstranění, nativní Unicode vkládání a označené Caps přepnutí, integrita balíčku, testy workeru, offline anglická referenční nahrávka, idle smoke a WPF review. `review.json` má prázdné `issues`; tmavý i světlý cloudový náhled byl vizuálně zkontrolován. UI fixture dočasně používá F9 pro kontrolu kompatibility; distribuované výchozí nastavení zůstává Caps Lock HOLD. Snímky používají falešný klíč, žádný skutečný NVIDIA požadavek.
+
+[Windows test ZIP](https://github.com/beamj786-rgb/jl-voice/actions/runs/45061431829/artifacts/14768769586) má 311 375 742 bajtů, retenci do 29. 11. 2026. Jde o nepodepsaný vývojový balíček, nikoli release. Živý test aplikace s mikrofonem, NVIDIA účtem a Notepadem/prohlížečem ani fyzická 8GB akceptace nebyly tímto CI provedeny.
