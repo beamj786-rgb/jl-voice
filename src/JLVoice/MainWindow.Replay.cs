@@ -16,7 +16,8 @@ public partial class MainWindow
     {
         ResultText.Text = result.Text;
         RecognitionMetrics.Text = $"{result.Model} · {result.Language}\n" + T("Nahrávka", "Recording") + $": {result.AudioSeconds:F2} s · " +
-            T("Inference", "Inference") + $": {result.InferenceMs / 1000:F2} s · " + T("Celý STT proces", "STT process total") + $": {result.WorkerWallMs / 1000:F2} s";
+            (result.InferenceMs is { } inference ? T("Inference", "Inference") + $": {inference / 1000:F2} s · " : "") +
+            (result.InferenceMs is null ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s";
     }
     private void ReplayClick(object sender, RoutedEventArgs e)
     {
@@ -29,7 +30,8 @@ public partial class MainWindow
         try
         {
             SetStatus(T("Přepisuji stejnou nahrávku…", "Transcribing the same recording…"));
-            var result = await AsrEngine.TranscribeAsync(replayWav!, settings, cts.Token);
+            var result = await TranscribeSelectedAsync(replayWav!, cts.Token);
+            cts.Token.ThrowIfCancellationRequested();
             ShowRecognition(result);
             SetStatus(T("Testovací přepis hotov. Text zůstává pouze zde.", "Test transcription complete. Text remains here only."));
         }

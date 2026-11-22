@@ -90,3 +90,4 @@ foreach (var threshold in new[] { 99, 1001 })
     catch (InvalidDataException) { }
 }
 Check(new Settings().HoldThresholdMs == 250, "default Caps hold threshold is 250 ms");
+await CloudChecks.RunAsync();

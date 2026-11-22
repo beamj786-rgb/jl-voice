@@ -57,10 +57,11 @@ Get-ChildItem "$packageRoot/microsoft.netcore.app.runtime.win-x64","$packageRoot
 }
 if (-not (Test-Path "$output/runtime/JLVoiceAsr.exe")) { throw 'Missing packaged runtime.' }
 Copy-Item "$root/docs/TESTING.md" "$output/TESTING.md"
+Copy-Item "$root/docs/NVIDIA-APP-TEST.md" "$output/NVIDIA-APP-TEST.md"
 Copy-Item "$root/docs/KNOWN_ISSUES.md" "$output/KNOWN_ISSUES.md"
 Copy-Item "$root/scripts/check-package.ps1" "$output/Check-Package.ps1"
 $sourceCommit = git -C $root rev-parse HEAD
 Check-Exit
-@{ source_commit=$sourceCommit; smart_app_control_qualified=$false; built_utc=[DateTime]::UtcNow.ToString('o'); model=$Model; runtime='win-x64'; framework='WPF'; profile='CPU-only development test'; release=$false } | ConvertTo-Json | Set-Content "$output/BUILD-INFO.json" -Encoding utf8NoBOM
+@{ source_commit=$sourceCommit; smart_app_control_qualified=$false; built_utc=[DateTime]::UtcNow.ToString('o'); model=$Model; runtime='win-x64'; framework='WPF'; profile='Offline CPU default; optional NVIDIA cloud development test'; release=$false } | ConvertTo-Json | Set-Content "$output/BUILD-INFO.json" -Encoding utf8NoBOM
 & "$PSScriptRoot/finalize-package.ps1" -PackageDirectory $output
 Write-Output "Development package created: $output. Windows acceptance testing is still required."

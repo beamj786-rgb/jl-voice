@@ -8,37 +8,12 @@ using System.Text.RegularExpressions;
 
 internal static class Program
 {
-    // Official multilingual TDT endpoint, not the English-only v2 endpoint.
-    internal const string Endpoint = "https://2b940e91-a70e-4483-a958-d50408b96589.invocation.api.nvcf.nvidia.com/v1/audio/transcriptions";
+    internal const string Endpoint = JLVoice.NvidiaSpeechClient.Endpoint;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
-    internal sealed class ApiFailure(int status) : Exception("NVIDIA HTTP " + status)
-    { public int Status { get; } = status; }
-
     internal static async Task<string> Transcribe(HttpClient client, string key, string language, byte[] wav)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-        using var form = new MultipartFormDataContent();
-        form.Add(new StringContent(language), "language");
-        var file = new ByteArrayContent(wav);
-        file.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
-        form.Add(file, "file", "sample.wav");
-        using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint) { Content = form };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
-        if (!response.IsSuccessStatusCode) throw new ApiFailure((int)response.StatusCode);
-        using var body = await response.Content.ReadAsStreamAsync(deadline.Token);
-        using var limited = new MemoryStream();
-        var buffer = new byte[8192];
-        for (int count; (count = await body.ReadAsync(buffer.AsMemory(), deadline.Token)) != 0;)
-        {
-            if (limited.Length + count > 1024 * 1024) throw new InvalidDataException("Unexpected response size.");
-            await limited.WriteAsync(buffer.AsMemory(0, count));
-        }
-        using var json = JsonDocument.Parse(limited.ToArray());
-        var text = json.RootElement.GetProperty("text").GetString();
-        if (text?.Contains(key, StringComparison.Ordinal) == true) throw new InvalidDataException("Unexpected authenticated response.");
-        return string.IsNullOrWhiteSpace(text) ? throw new InvalidDataException("No transcript.") : text;
+        var code = language switch { "cs-CZ" => "cs", "en-GB" => "en", _ => throw new JLVoice.CloudSpeechException(JLVoice.CloudFailure.Language) };
+        return (await JLVoice.NvidiaSpeechClient.TranscribeAsync(client, wav, key, code, true, CancellationToken.None)).Text;
     }
 
     private static string ReadKey()
@@ -121,7 +96,7 @@ internal static class Program
             }
             complete = true;
         }
-        catch (ApiFailure error) { Console.Error.WriteLine($"NVIDIA odmítla požadavek: HTTP {error.Status}. Bez automatického opakování."); }
+        catch (JLVoice.CloudSpeechException error) { Console.Error.WriteLine($"NVIDIA požadavek selhal: {error.Failure}. Bez automatického opakování."); }
         catch { Console.Error.WriteLine("Test nedokončen: chyba sítě, souborů nebo formátu odpovědi. Detaily požadavku ani klíč se nelogují."); }
         finally
         {
@@ -155,13 +130,13 @@ internal static class Program
                 throw new Exception("Authentication/destination contract failed.");
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"text\":\"Příští čtvrtek.\"}") };
         }));
-        if (await Transcribe(client,key,"cs-CZ",new byte[44]) != "Příští čtvrtek.") throw new Exception("Response parsing failed.");
+        if (await Transcribe(client,key,"cs-CZ",new byte[16044]) != "Příští čtvrtek.") throw new Exception("Response parsing failed.");
         using var denied = new HttpClient(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized) { Content = new StringContent(key) }));
-        try { await Transcribe(denied,key,"en-GB",new byte[44]); throw new Exception("HTTP failure accepted."); }
-        catch (ApiFailure error) { if (error.Status != 401 || error.Message.Contains(key)) throw new Exception("Unsafe error reporting."); }
+        try { await Transcribe(denied,key,"en-GB",new byte[16044]); throw new Exception("HTTP failure accepted."); }
+        catch (JLVoice.CloudSpeechException error) { if (error.Failure != JLVoice.CloudFailure.Unauthorized || error.Message.Contains(key)) throw new Exception("Unsafe error reporting."); }
         using var echoed = new HttpClient(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"text\":\"" + key + "\"}") }));
-        try { await Transcribe(echoed,key,"en-GB",new byte[44]); throw new Exception("Credential echo accepted."); }
-        catch (InvalidDataException) { }
+        try { await Transcribe(echoed,key,"en-GB",new byte[16044]); throw new Exception("Credential echo accepted."); }
+        catch (JLVoice.CloudSpeechException error) when (error.Failure == JLVoice.CloudFailure.Response) { }
         Console.WriteLine("PASS: scoring, fixed HTTPS destination, Bearer/multipart contract, response parsing, failed-request rejection and secret-free errors (mock only; no NVIDIA request).");
     }
 }

@@ -48,6 +48,26 @@ public partial class MainWindow
         RetainAudio.IsChecked = false;
         if (replayWav is not null || ReplayButton.IsEnabled || replayFixture.Any(value => value != 0)) issues.Add("Disabling replay retention did not erase the owned buffer.");
         Navigate(true); ShortcutKey.SelectedValue = 0x78; PushToTalk.IsChecked = false;
+        if (settings.Provider != "offline" || CloudConsent.IsChecked == true || sessionNvidiaKey is not null) issues.Add("Cloud must be off with no credential at review startup.");
+        Provider.SelectedIndex = 1; InvokeButton(SaveButton); await SettleAsync();
+        if (settings.Provider != "offline") issues.Add("Cloud activated without consent/key.");
+        DictationLanguage.SelectedIndex = 1; CloudConsent.IsChecked = true;
+        NvidiaKey.Password = "FAKE-UI-ONLY-NON-AUTHENTICATING";
+        InvokeButton(SaveButton); await SettleAsync();
+        if (settings.Provider != "nvidia" || !cloudApproved || Model.IsEnabled || Threads.IsEnabled || !PrivacyText.Text.Contains("NVIDIA")) issues.Add("Cloud settings/provider disclosure did not round-trip.");
+        RequireCloudReady();
+        foreach (var light in new[] { false, true })
+        {
+            Theme.SelectedIndex = light ? 1 : 0; Width = 650; Height = 760; PageScroll.ScrollToTop();
+            await Capture(light ? "light-cloud-settings" : "dark-cloud-settings");
+        }
+        CloudConsent.IsChecked = false;
+        try { RequireCloudReady(); issues.Add("Revoked cloud consent remained usable."); }
+        catch (CloudSpeechException error) when (error.Failure == CloudFailure.Consent) { }
+        InvokeButton(ForgetCloudKey);
+        if (sessionNvidiaKey is not null || NvidiaKey.Password.Length != 0) issues.Add("Forget did not clear the session key.");
+        Provider.SelectedIndex = 0; DictationLanguage.SelectedIndex = 0; Theme.SelectedIndex = 0;
+        InvokeButton(SaveButton); await SettleAsync();
         InvokeButton(SaveButton); await SettleAsync();
         if (settings.Key != 0x78 || settings.PushToTalk || !PushToTalk.IsEnabled) issues.Add("F9 toggle selection did not round-trip through settings.");
         ShortcutKey.SelectedValue = DictationKeys.CapsLock; InvokeButton(SaveButton); await SettleAsync();

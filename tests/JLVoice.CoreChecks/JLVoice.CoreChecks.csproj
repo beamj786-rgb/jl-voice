@@ -5,5 +5,6 @@
     <PackageReference Include="NAudio.WinMM" Version="[2.2.1]" />
     <Compile Include="../../src/JLVoice/AudioCapture.cs" Link="AudioCapture.cs" />
     <Compile Include="../../src/JLVoice/CapsHoldState.cs" Link="CapsHoldState.cs" />
+    <Compile Include="../../src/JLVoice/NvidiaSpeechClient.cs" Link="NvidiaSpeechClient.cs" />
   </ItemGroup>
 </Project>

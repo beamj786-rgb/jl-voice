@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         foreach (var (file, name) in new[] { ("ggml-base-q5_1.bin", "Base · Q5"), ("ggml-base-q8_0.bin", "Base · Q8"), ("ggml-small-q5_1.bin", "Small · Q5") })
             if (File.Exists(Path.Combine(AppContext.BaseDirectory, "models", file)) || file == settings.Model) { modelFiles.Add(file); Model.Items.Add(name); }
         Model.SelectedIndex = Math.Max(0, modelFiles.IndexOf(settings.Model)); Threads.ItemsSource = new[] { "1", "2" }; Threads.SelectedIndex = settings.Threads - 1;
+        InitializeCloudControls();
         RefreshMicrophones();
         foreach (var control in new[] { DictationLanguage, Microphone, ShortcutKey, Model, Threads, Theme, UiLanguage }) control.SelectionChanged += (_, _) => MarkPending();
         ShortcutKey.SelectionChanged += (_, _) => UpdateShortcutMode();
@@ -90,7 +91,7 @@ public partial class MainWindow : Window
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         languageSelection = DictationLanguage.SelectedIndex; themeSelection = Theme.SelectedIndex;
-        Localize(); binding = false; ApplyTheme(); ReadyStatus(); bubble.SetIdle(Shortcut, locale); PendingText.Text = "";
+        Localize(); binding = false; ApplyTheme(); ReadyStatus(); bubble.SetIdle(BubbleShortcut, locale); PendingText.Text = "";
     }
     private IntPtr WindowHook(IntPtr window, int message, IntPtr w, IntPtr l, ref bool handled)
     {
@@ -130,7 +131,7 @@ public partial class MainWindow : Window
     private void AdjustSize()
     {
         if (reviewMode || !IsInitialized) return;
-        Height = Math.Min(SystemParameters.WorkArea.Height - 30, preferencesOpen ? Advanced.IsExpanded ? 760 : 650 : NoticePanel.IsVisible ? 600 : string.IsNullOrEmpty(ResultText.Text) ? 430 : 620);
+        Height = Math.Min(SystemParameters.WorkArea.Height - 30, preferencesOpen ? Advanced.IsExpanded || Provider.SelectedIndex == 1 ? 760 : 650 : NoticePanel.IsVisible ? 600 : string.IsNullOrEmpty(ResultText.Text) ? 430 : 620);
     }
     private void UpdateShortcutMode()
     {
@@ -164,6 +165,7 @@ public partial class MainWindow : Window
         RetainAudio.Content = new TextBlock { Text = T("Vývojový test: ponechat poslední zvuk v paměti", "Developer check: retain last audio in memory"), TextWrapping = TextWrapping.Wrap, MaxWidth = 370 };
         RetainAudio.ToolTip = T("Pouze po výslovném zapnutí a jen do odškrtnutí nebo ukončení aplikace. Opakovaný přepis nic nevkládá.", "Explicit opt-in only, until unchecked or app exit. Replay transcription never inserts text.");
         ReplayButton.Content = T("Přepsat stejný zvuk znovu", "Transcribe the same audio again");
+        LocalizeCloud();
         SaveButton.Content = T("Uložit", "Save changes"); BackToWorkButton.Content = T("Zpět k práci", "Back to work");
         EmptyResultText.Text = T("Poslední přepis se objeví tady.", "Your last transcript will appear here."); ResultHeading.Text = T("Poslední přepis", "Last transcript");
         CopyButton.Content = T("Kopírovat", "Copy"); ClearButton.Content = T("Vymazat", "Clear");
@@ -172,7 +174,7 @@ public partial class MainWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(ResultText, ResultHeading.Text);
         System.Windows.Automation.AutomationProperties.SetName(CloseButton, T("Skrýt do systémové lišty", "Hide to tray"));
         if (!Microphone.IsEnabled) { Microphone.Items.Clear(); Microphone.Items.Add(T("Žádný mikrofon", "No microphone")); Microphone.SelectedIndex = 0; }
-        UpdateSummaries(); if (!busy && capture is null) { ReadyStatus(); bubble.SetIdle(Shortcut, locale); } MarkPending();
+        UpdateSummaries(); if (!busy && capture is null) { ReadyStatus(); bubble.SetIdle(BubbleShortcut, locale); } MarkPending();
     }
     private int languageSelection, themeSelection;
     private void InterfaceChanged(object sender, SelectionChangedEventArgs e)
@@ -192,7 +194,9 @@ public partial class MainWindow : Window
     private void UpdateSummaries()
     {
         ShortcutText.Text = Shortcut;
-        LanguageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " + settings.Model;
+        LanguageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " + (settings.Provider == "nvidia" ? "NVIDIA cloud" : settings.Model);
+        PrivacyText.Text = settings.Provider == "nvidia" ? T("Cloud zapnutý: nahraný zvuk se odesílá do NVIDIA.", "Cloud enabled: recorded audio is sent to NVIDIA.")
+            : T("Offline: zvuk se zpracovává pouze na tomto počítači.", "Offline: audio is processed only on this computer.");
     }
     private void RefreshMicrophones()
     {
@@ -208,8 +212,10 @@ public partial class MainWindow : Window
         var show = !IsVisible && (bubble.Activity != BubbleActivity.Idle || (idleBubbleOverride ?? settings.ShowIdleBubble));
         if (show) { if (!bubble.IsVisible) bubble.Show(); } else bubble.Hide();
     }
-    private void ResetBubble() { bubble.SetIdle(Shortcut, locale); RefreshBubble(); }
-    private void ReadyStatus() => SetStatus(Microphone.IsEnabled ? T("Připraveno k diktování.", "Ready to dictate.") : T("Připojte mikrofon.", "Connect a microphone."));
+    private void ResetBubble() { bubble.SetIdle(BubbleShortcut, locale); RefreshBubble(); }
+    private void ReadyStatus() => SetStatus(settings.Provider == "nvidia" && (!cloudApproved || !NvidiaSpeechClient.ValidKey(sessionNvidiaKey))
+        ? T("Doplňte cloudový klíč a souhlas v Nastavení.", "Set the cloud key and consent in Settings.")
+        : Microphone.IsEnabled ? T("Připraveno k diktování.", "Ready to dictate.") : T("Připojte mikrofon.", "Connect a microphone."));
     private void SetStatus(string text)
     {
         StatusText.Text = text; NoticePanel.Visibility = Visibility.Collapsed;
@@ -231,9 +237,14 @@ public partial class MainWindow : Window
         try
         {
             var next = settings with { Language = DictationLanguage.SelectedIndex switch { 1 => "cs", 2 => "en", _ => "auto" }, Microphone = Microphone.SelectedIndex,
+                Provider = Provider.SelectedIndex == 1 ? "nvidia" : "offline", CloudConsentVersion = Provider.SelectedIndex == 1 && CloudConsent.IsChecked == true ? 1 : 0,
+                RememberNvidiaKey = RememberCloudKey.IsChecked == true,
                 PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, HoldThresholdMs = int.Parse(HoldThreshold.Text), ShowIdleBubble = IdleBubble.IsChecked == true,
                 Model = modelFiles[Model.SelectedIndex], Threads = Threads.SelectedIndex + 1, Theme = ThemeName, UiLanguage = locale };
-            next.Validate(); if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
+            var key = PrepareCloudSettings(next);
+            if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
+            sessionNvidiaKey = key; cloudApproved = next.Provider == "nvidia" && next.CloudConsentVersion == 1;
+            NvidiaKey.Clear(); UpdateCloudControls();
             if (reviewMode || ConfigureShortcut()) { ReadyStatus(); ResetBubble(); }
             UpdateSummaries(); PendingText.Text = T("Uloženo.", "Saved.");
         }
@@ -293,6 +304,7 @@ public partial class MainWindow : Window
         {
             try
             {
+                RequireCloudReady();
                 target = original ?? WindowsInput.CaptureTarget();
                 if (target.Window == handle) throw new InvalidOperationException(T("Zaměřte cílové textové pole.", "Focus the destination text field."));
                 var audio = new AudioCapture(settings.Microphone); capture = audio;
@@ -317,7 +329,7 @@ public partial class MainWindow : Window
                 await AudioPlayback.PlayAsync(wav, cts.Token);
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
-            var result = await AsrEngine.TranscribeAsync(wav, settings, cts.Token); ShowRecognition(result);
+            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result);
             await WindowsInput.InsertAsync(result.Text, target, cts.Token); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }
@@ -352,6 +364,7 @@ public partial class MainWindow : Window
         if (hook != IntPtr.Zero) WindowsInput.UnhookWindowsHookEx(hook);
         await CancelAsync(); if (cancelTask is not null) await cancelTask; if (activeTask is not null) await activeTask;
         ForgetReplay();
+        sessionNvidiaKey = null; NvidiaKey.Clear(); cloudApproved = false;
         recordingTimer.Stop(); tray?.Dispose(); bubble.DisposeBubble(); SystemEvents.UserPreferenceChanged -= OnSystemAppearance;
         SystemEvents.SessionSwitch -= OnSessionSwitch; SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         Closing -= OnClosing; Close(); Application.Current.Shutdown(Environment.ExitCode);

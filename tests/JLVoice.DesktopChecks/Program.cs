@@ -8,6 +8,16 @@ internal static class Program
     private static void Main()
     {
         Application.EnableVisualStyles();
+        var credentialTarget = "JLVoice.Tests." + Guid.NewGuid().ToString("N");
+        try
+        {
+            WindowsCredentialStore.Save("FAKE-NON-AUTHENTICATING-TEST-VALUE", credentialTarget);
+            if (WindowsCredentialStore.Load(credentialTarget) != "FAKE-NON-AUTHENTICATING-TEST-VALUE") throw new Exception("Windows credential round-trip failed.");
+            WindowsCredentialStore.Forget(credentialTarget);
+            if (WindowsCredentialStore.Load(credentialTarget) is not null) throw new Exception("Windows credential removal failed.");
+            Console.WriteLine("PASS: isolated fake credential round-trip and removal in current Windows user store");
+        }
+        finally { WindowsCredentialStore.Forget(credentialTarget); }
         using var form = new Form { Text = "JL Voice disposable native input checks", Width = 640, Height = 240 };
         using var editor = new TextBox { Multiline = true, Dock = DockStyle.Top, Height = 100 };
         using var other = new TextBox { Dock = DockStyle.Bottom };

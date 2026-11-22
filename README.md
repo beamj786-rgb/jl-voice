@@ -41,7 +41,7 @@ dotnet build src/JLVoice/JLVoice.csproj -c Release
 pwsh scripts/package.ps1
 ```
 
-`artifacts/JLVoice` is a self-contained portable folder, including the CPU runtime and multilingual model. Do not distribute it until licenses, clean-machine/offline operation and the [acceptance checklist](docs/REQUIREMENTS.md) pass. The development package downloads dependencies only at build time. The application contains no model downloader, cloud ASR, account system or telemetry.
+`artifacts/JLVoice` is a self-contained portable folder, including the CPU runtime and multilingual model. Do not distribute it until licenses, clean-machine/offline operation and the [acceptance checklist](docs/REQUIREMENTS.md) pass. The development package downloads dependencies only at build time. The application has no model downloader, account system or telemetry. Optional NVIDIA cloud dictation requires your own API key and explicit audio consent; offline CPU recognition remains the default. See [cloud test instructions](docs/NVIDIA-APP-TEST.md).
 
 Launch `JLVoice.exe`, focus a text field, hold Caps Lock until recording starts (250 ms by default), speak and release it to transcribe. Existing saved shortcuts keep their previous binding. The bottom-centre bubble can also start/stop recording; hovering reveals settings. Double-click the tray icon to open the main window. Escape cancels active dictation. Closing/minimizing keeps the app in the tray; use Exit in the tray menu to quit. Keep the portable folder writable for settings. Elevated applications and some input controls may reject synthesized input; inspect the retained result rather than blindly retrying partial insertion.
 

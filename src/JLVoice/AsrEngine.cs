@@ -7,7 +7,7 @@ namespace JLVoice;
 
 internal static class AsrEngine
 {
-    internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double InferenceMs, double WorkerWallMs);
+    internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double? InferenceMs, double WorkerWallMs);
     private static Process StartWorker(ProcessStartInfo start)
     {
         try { return Process.Start(start) ?? throw new IOException("Cannot start the bundled speech engine."); }

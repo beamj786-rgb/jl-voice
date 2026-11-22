@@ -17,3 +17,5 @@
 - Full-app monitor supplies sampled working-set/CPU and input-dispatch timings; the worker also supplies OS peak/CPU counters. Modern target-app insertion, cold-cache control and desktop responsiveness still require additional evidence.
 - No signed executable, completed redistribution audit, production release, or benchmark-qualified minimum system requirements.
 - Upstream MSVC builds emit warnings, including pointer/bool conversions in ggml backward-gradient helpers and ignored GCC pragmas. Source inspection places the reported conversion sites in gradient-building code; the inference smoke test passes, but this is not a comprehensive upstream warning audit. Review before release; no upstream patch is carried.
+
+- NVIDIA app integration is a development test: owner microphone → cloud → original target insertion still needs hands-on acceptance. Cloud Auto is unverified and disabled; select Czech or English. Developer endpoint availability, quotas and continued free access are not guaranteed. Cloud does not resolve Windows blocking the unsigned main executable.

@@ -14,6 +14,23 @@ internal sealed record ErrorNotice(string Title, string Message, string Details)
     internal static ErrorNotice From(Exception error, string language)
     {
         var cs = language == "cs";
+        if (error is CloudSpeechException cloud)
+        {
+            var message = cloud.Failure switch
+            {
+                CloudFailure.Consent => cs ? "V Nastavení potvrďte odesílání nahraného zvuku do NVIDIA a uložte změny, nebo vyberte Offline." : "Confirm audio upload to NVIDIA in Settings and save, or select Offline.",
+                CloudFailure.Key => cs ? "V Nastavení zadejte platný NVIDIA API klíč a uložte změny." : "Enter a valid NVIDIA API key in Settings and save.",
+                CloudFailure.Language => cs ? "Pro cloudový test vyberte Češtinu nebo English. Automatický jazyk je zatím pouze offline." : "Choose Czech or English for the cloud test. Automatic is currently offline only.",
+                CloudFailure.Unauthorized => cs ? "NVIDIA nepřijala API klíč (401). Zkontrolujte jej v Nastavení." : "NVIDIA rejected the API key (401). Check it in Settings.",
+                CloudFailure.Forbidden => cs ? "NVIDIA nepovolila přístup (403). Ověřte oprávnění svého účtu." : "NVIDIA denied access (403). Check your account permissions.",
+                CloudFailure.RateLimited => cs ? "NVIDIA omezila požadavky (429). Zkuste to později; požadavek automaticky neopakujeme." : "NVIDIA rate-limited the request (429). Try later; no automatic retry.",
+                CloudFailure.Network => cs ? "NVIDIA není dostupná. Zkontrolujte připojení nebo vyberte Offline." : "NVIDIA is unreachable. Check connectivity or select Offline.",
+                CloudFailure.Timeout => cs ? "Cloudový přepis překročil časový limit. Není zaručeno, že jej server nezpracoval." : "Cloud transcription timed out. The server may already have processed it.",
+                CloudFailure.Response => cs ? "NVIDIA nevrátila použitelný přepis." : "NVIDIA did not return a usable transcript.",
+                _ => cs ? "Cloudový přepis NVIDIA selhal. Zkuste to později nebo vyberte Offline." : "NVIDIA cloud transcription failed. Try later or select Offline."
+            };
+            return new(cs ? "Cloudový přepis se nezdařil." : "Cloud transcription failed.", message, "");
+        }
         if (error is AsrStartException start)
         {
             var title = start.PolicyBlocked

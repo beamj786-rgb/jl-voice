@@ -7,5 +7,6 @@
   <ItemGroup>
     <Compile Include="../../src/JLVoice/WindowsInput.cs" Link="WindowsInput.cs" />
     <Compile Include="../../src/JLVoice/DictationKeys.cs" Link="DictationKeys.cs" />
+    <Compile Include="../../src/JLVoice/WindowsCredentialStore.cs" Link="WindowsCredentialStore.cs" />
   </ItemGroup>
 </Project>
