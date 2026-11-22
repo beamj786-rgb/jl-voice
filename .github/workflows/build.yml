@@ -36,6 +36,9 @@ jobs:
       - name: Signature inventory and fail-closed signing preparation
         shell: pwsh
         run: ./tests/package-signing.ps1 -PackageDirectory ./artifacts/JLVoice
+      - name: Original-binary metadata for Foundation review
+        shell: pwsh
+        run: ./tests/signpath-readiness.ps1 -PackageDirectory ./artifacts/JLVoice -ReportPath ./artifacts/signpath-readiness.json
       - name: Scoring and native audio boundary checks
         shell: pwsh
         run: |
@@ -68,6 +71,7 @@ jobs:
           path: |
             artifacts/ui-review/
             artifacts/ci-idle.json
+            artifacts/signpath-readiness.json
             artifacts/JLVoice/SIGNATURES.json
             artifacts/JLVoice/BUILD-INFO.json
           if-no-files-found: warn

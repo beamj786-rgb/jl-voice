@@ -5,12 +5,16 @@ function Get-PackageCodeInventory([string]$Directory) {
     if ($files.Count -eq 0) { throw 'The package contains no executable code.' }
     foreach ($file in $files) {
         $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+        $versionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($file.FullName)
         [pscustomobject]@{
             path = $file.FullName.Substring($directoryPath.Length + 1)
             sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             status = $signature.Status.ToString()
             signer_thumbprint = if ($signature.SignerCertificate) { $signature.SignerCertificate.Thumbprint } else { $null }
             timestamped = $null -ne $signature.TimeStamperCertificate
+            product_name = $versionInfo.ProductName
+            product_version = $versionInfo.ProductVersion
+            file_version = $versionInfo.FileVersion
         }
     }
 }

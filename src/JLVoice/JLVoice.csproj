@@ -9,6 +9,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>JLVoice</AssemblyName>
     <Version>0.1.0</Version>
+    <Product>JL Voice</Product>
+    <Title>JL Voice</Title>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <ApplicationIcon>../../assets/brand/JLVoice.ico</ApplicationIcon>
   </PropertyGroup>

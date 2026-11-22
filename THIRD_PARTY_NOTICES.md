@@ -10,4 +10,4 @@ This file is an inventory for development, not a completed redistribution cleara
 - Funnel Display, Funnel Sans and Geist Mono — SIL Open Font License 1.1. Original static brand font files and license texts are bundled under `assets/fonts`; provenance and roles are in `docs/UI.md`.
 - JL Automation Orbit marks/app icon — owner-supplied brand assets from the owner's agency repository, pinned source commit documented in `assets/brand/source.json`. SVGs are preserved; PNG/ICO derivatives retain their colours and shape. Brand assets are not relicensed as application source.
 
-No code or assets from Wispr Flow or `az9713/wispr-flow-rea-teardown` are included. No project-source redistribution license has been selected by the owner yet. Public GitHub visibility does not itself grant a source license.
+No code or assets from Wispr Flow or `az9713/wispr-flow-rea-teardown` are included. The owner approved MIT for the original JL Voice source on 2026-11-22; see LICENSE and LICENSE-SCOPE.md. Existing third-party/font licenses and reserved brand artwork remain separate. This does not assert whole-bundle Foundation eligibility.

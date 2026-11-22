@@ -48,3 +48,9 @@ Launch `JLVoice.exe`, focus a text field, hold Caps Lock to speak and release it
 The three candidate models can be packaged with `-Model ggml-base-q5_1.bin`, `ggml-base-q8_0.bin`, or `ggml-small-q5_1.bin`. Packaging a larger candidate is an explicit developer choice, not an automatic RAM-based upgrade.
 
 See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md), [research](docs/REVERSE_ENGINEERING.md) and [known issues](docs/KNOWN_ISSUES.md).
+
+## License and Code signing policy
+
+Original JL Voice code is [MIT licensed](LICENSE), with [explicit scope and exclusions](LICENSE-SCOPE.md). Dependency/font terms and separately reserved brand assets remain intact.
+
+The [Code signing policy](docs/CODE-SIGNING-POLICY.md) and [privacy/removal policy](docs/PRIVACY.md) are prepared for a possible SignPath Foundation application. No acceptance or signing is claimed. End users would still extract a signed portable ZIP; the signing service is publisher/build infrastructure. See the [unsent application draft and blockers](docs/SIGNPATH-APPLICATION.md).

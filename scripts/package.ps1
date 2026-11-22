@@ -36,6 +36,9 @@ Copy-Item $cached "$output/models/$Model"
 @{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
 Copy-Item "$vendor/LICENSE" "$output/licenses/whisper.cpp-MIT.txt"
 Copy-Item "$root/THIRD_PARTY_NOTICES.md" "$output/licenses/"
+Copy-Item "$root/LICENSE" "$output/licenses/LICENSE"
+Copy-Item "$root/LICENSE-SCOPE.md" "$output/licenses/LICENSE-SCOPE.md"
+Copy-Item "$root/docs/PRIVACY.md" "$output/PRIVACY.md"
 Copy-Item "$root/licenses/*" "$output/licenses/"
 # Preserve dependency licenses distributed by NuGet.
 $packageRoot = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget/packages' }
