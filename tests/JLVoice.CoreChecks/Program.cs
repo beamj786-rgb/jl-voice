@@ -55,6 +55,18 @@ Check(silent.PeakDbfs is null && silent.RmsDbfs is null && silent.LowLevel && si
 Check(AudioStats.Analyze(Tone(1, clip: true))!.ClippedFraction == 1, "full-scale clipping is counted");
 Check(AudioStats.Analyze([1, 2, 3]) is null && AudioStats.Analyze(new byte[64]) is null, "malformed audio yields no stats");
 
+Check(new Settings().PostRollMs == 0, "post-release recording is off by default");
+foreach (var bad in new[] { -1, 501 })
+{
+    try { (new Settings { PostRollMs = bad }).Validate(); throw new Exception("Invalid post-roll accepted"); }
+    catch (InvalidDataException) { }
+}
+(new Settings { PostRollMs = 250 }).Validate();
+Check(true, "experimental post-roll is bounded to 0..500 ms");
+Check(CaptureTiming.Since(1000, 0) is null && CaptureTiming.Since(1000, 1320) == 320, "capture timing: missing ticks stay null, not zero");
+var timingText = new CaptureTiming(5, 90, null).Describe(false);
+Check(timingText.Contains("+5 ms") && timingText.Contains("+90 ms") && timingText.Contains("delivered +n/a"), "capture timing names delivery, not first-sample time, and keeps unknowns unknown");
+
 var latch = new HoldKeyState();
 Check(latch.Change(true, true) == HoldAction.Start && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.Stop && latch.Change(false, true) == HoldAction.None, "a hold starts and stops once despite repeat and duplicate release");
 Check(latch.Change(true, false) == HoldAction.None && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.None, "a busy key press cannot start on repeat or stop another recording");

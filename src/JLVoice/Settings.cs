@@ -17,6 +17,8 @@ public sealed record Settings
     public string Theme { get; init; } = "dark";
     public string UiLanguage { get; init; } = "cs";
     public bool ShowIdleBubble { get; init; } = true;
+    // Experimental, settings.json only: keep recording this long after a hold release (0 = stop at release).
+    public int PostRollMs { get; init; }
     private static string Path => System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");
 
     public static Settings Load()
@@ -31,7 +33,7 @@ public sealed record Settings
         var s = this;
         if (s.Provider is not ("offline" or "nvidia") || s.CloudConsentVersion is < 0 or > 1 ||
             (s.Provider == "nvidia" && (s.CloudConsentVersion != 1 || s.Language == "auto")) ||
-            s.HoldThresholdMs is < 100 or > 1000 || s.Language is not ("cs" or "en" or "auto") || s.Threads is < 1 or > 2 || !DictationKeys.IsSupported(s.Key) || (s.Key == DictationKeys.CapsLock && !s.PushToTalk) ||
+            s.HoldThresholdMs is < 100 or > 1000 || s.PostRollMs is < 0 or > 500 || s.Language is not ("cs" or "en" or "auto") || s.Threads is < 1 or > 2 || !DictationKeys.IsSupported(s.Key) || (s.Key == DictationKeys.CapsLock && !s.PushToTalk) ||
             s.Model is not ("ggml-base-q5_1.bin" or "ggml-base-q8_0.bin" or "ggml-small-q5_1.bin") ||
             s.Theme is not ("dark" or "light" or "system") || s.UiLanguage is not ("cs" or "en"))
             throw new InvalidDataException("Unsupported settings. Review settings.json in the portable folder.");

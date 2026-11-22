@@ -12,7 +12,7 @@ public partial class MainWindow
         if (ReplayButton is not null) ReplayButton.IsEnabled = false;
     }
     private void ForgetReplayClick(object sender, RoutedEventArgs e) => ForgetReplay();
-    private void ShowRecognition(AsrEngine.Result result, byte[] wav, double? startGapMs = null)
+    private void ShowRecognition(AsrEngine.Result result, byte[] wav, CaptureTiming? timing = null)
     {
         var stats = AudioStats.Analyze(wav);
         Diagnostics.Mark("build", new { commit = BuildInfo.Commit });
@@ -22,7 +22,7 @@ public partial class MainWindow
             (result.InferenceMs is { } inference ? T("Inference", "Inference") + $": {inference / 1000:F2} s · " : "") +
             (result.InferenceMs is null ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s" +
             (stats is null ? "" : "\n" + stats.Describe(locale == "cs")) +
-            (startGapMs is { } gap ? "\n" + T($"Záznam začal ~{gap:F0} ms po stisku klávesy; dřívější řeč se nenahrála.", $"Recording began ~{gap:F0} ms after the key press; earlier speech was not captured.") : "") +
+            (timing is null ? "" : "\n" + timing.Describe(locale == "cs")) +
             "\nBuild: " + (BuildInfo.Commit ?? "n/a");
     }
     private void ReplayClick(object sender, RoutedEventArgs e)

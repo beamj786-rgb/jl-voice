@@ -284,7 +284,6 @@ public partial class MainWindow : Window
         }
         return true;
     }
-    internal const int PostRollMs = 250;
     private void PostToUi(Action action) { if (!closing && !Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(action); }
     private void EnterActive()
     {
@@ -311,8 +310,16 @@ public partial class MainWindow : Window
                 if (target.Window == handle) throw new InvalidOperationException(T("Zaměřte cílové textové pole.", "Focus the destination text field."));
                 var audio = new AudioCapture(settings.Microphone); capture = audio;
                 audio.Faulted += error => PostToUi(() => { if (capture == audio) activeTask = FailCaptureAsync(audio, error); });
+                // Signal "speak now" only once audio is actually arriving, not when the device call returns.
+                audio.FirstBuffer += () => PostToUi(() =>
+                {
+                    if (capture != audio || busy) return;
+                    bubble.SetRecording(locale); RefreshBubble(); SetStatus(T("Nahrávám – mluvte.", "Recording – speak now.")); Diagnostics.Mark("first_pcm_buffer");
+                });
+                bubble.PlaceForWindow(target.Window); bubble.SetPreparing(locale); SetStatus(T("Připravuji mikrofon…", "Preparing microphone…"));
                 audio.Start(); ResultText.Clear(); EnterActive(); recordingTime.Restart(); recordingTimer.Start();
-                bubble.PlaceForWindow(target.Window); bubble.SetRecording(locale); RefreshBubble(); SetStatus(T("Nahrávám…", "Recording…")); Diagnostics.Mark("recording_started");
+                if (audio.FirstBufferTick != 0 && capture == audio) { bubble.SetRecording(locale); SetStatus(T("Nahrávám – mluvte.", "Recording – speak now.")); }
+                RefreshBubble(); Diagnostics.Mark("recording_started");
             }
             catch (Exception error) { capture?.Dispose(); capture = null; holdPressedAt = null; ExitActive(); Notify(error); }
             return;
@@ -324,12 +331,14 @@ public partial class MainWindow : Window
         using var cts = new CancellationTokenSource(); cancellation = cts; var latency = Stopwatch.StartNew();
         try
         {
-            // Hold release usually coincides with the last syllable; keep a short tail so it is not cut.
-            if (settings.PushToTalk) await Task.Delay(PostRollMs, cts.Token);
+            // Experimental opt-in (settings.json PostRollMs, default 0): records after the key is released.
+            // Cancellation, lock/suspend and exit cancel this delay through cts; new holds are refused while busy.
+            var postRoll = settings.PushToTalk ? settings.PostRollMs : 0;
+            if (postRoll > 0) await Task.Delay(postRoll, cts.Token);
             wav = await audioSession.StopAsync(); audioSession.Dispose();
-            double? startGapMs = pressedAt is { } down && audioSession.FirstBufferTick > 0
-                ? Math.Max(0, audioSession.FirstBufferTick - AudioCapture.BufferMilliseconds - down) : null;
-            Diagnostics.Mark("capture_window", new { start_after_key_ms = startGapMs, post_roll_ms = settings.PushToTalk ? PostRollMs : 0 });
+            var timing = pressedAt is { } down ? CaptureTiming.From(down, audioSession) : null;
+            Diagnostics.Mark("capture_window", new { open_started_after_press_ms = timing?.OpenStartedMs, start_returned_after_press_ms = timing?.StartReturnedMs,
+                first_buffer_delivered_after_press_ms = timing?.FirstBufferMs, buffer_ms = AudioCapture.BufferMilliseconds, post_roll_ms = postRoll });
             if (RetainAudio.IsChecked == true) { ForgetReplay(); replayWav = (byte[])wav.Clone(); ReplayButton.IsEnabled = true; }
             if (ReviewAudio.IsChecked == true)
             {
@@ -337,7 +346,7 @@ public partial class MainWindow : Window
                 await AudioPlayback.PlayAsync(wav, cts.Token);
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
-            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav, startGapMs);
+            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav, timing);
             await WindowsInput.InsertAsync(result.Text, target, cts.Token, handle); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }

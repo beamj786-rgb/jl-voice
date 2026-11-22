@@ -71,6 +71,11 @@ public partial class VoiceBubble : Window
     }
     internal void SetIdle(string keys, string language) { shortcut = keys; locale = language; SetState(BubbleActivity.Idle); }
     internal void SetRecording(string language) { locale = language; SetState(BubbleActivity.Recording); }
+    // Device opening: speech is not captured yet; switch to Recording on the first PCM buffer.
+    internal void SetPreparing(string language)
+    {
+        locale = language; SetState(BubbleActivity.Processing); BubbleCaption.Text = T("Připravuji mikrofon…", "Preparing microphone…");
+    }
     internal void SetProcessing(string language, bool cancelling = false)
     {
         locale = language; SetState(BubbleActivity.Processing); BubbleCaption.Text = cancelling ? T("Ruším…", "Cancelling…") : T("Přepisuji…", "Transcribing…");
