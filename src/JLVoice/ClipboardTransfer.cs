@@ -22,6 +22,7 @@ internal sealed class ClipboardTransfer : IDisposable
     [DllImport("user32.dll")] private static extern IntPtr GetClipboardData(uint format);
     [DllImport("user32.dll")] private static extern IntPtr SetClipboardData(uint format, IntPtr memory);
     [DllImport("user32.dll")] internal static extern uint GetClipboardSequenceNumber();
+    [DllImport("user32.dll")] private static extern IntPtr GetClipboardOwner();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern uint RegisterClipboardFormat(string name);
     [DllImport("kernel32.dll")] private static extern UIntPtr GlobalSize(IntPtr memory);
     [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint flags, UIntPtr size);
@@ -124,9 +125,6 @@ internal sealed class ClipboardTransfer : IDisposable
                 if (SetClipboardData(block.Format, block.Data) == IntPtr.Zero) throw new InvalidOperationException("Cannot publish clipboard paste.");
                 blocks[i] = (block.Format, IntPtr.Zero); // Windows owns it now.
             }
-            // Capture under the clipboard lock: another application must not become
-            // the apparent owner between CloseClipboard and this sequence read.
-            lease.publishedSequence = GetClipboardSequenceNumber();
         }
         catch
         {
@@ -139,11 +137,16 @@ internal sealed class ClipboardTransfer : IDisposable
             foreach (var block in blocks) if (block.Data != IntPtr.Zero) GlobalFree(block.Data);
             CloseClipboard();
         }
+        // Windows finalizes the sequence when closing the write. Check ownership on
+        // both sides of this read so a foreign copy is never adopted as our write.
+        if (GetClipboardOwner() != owner) { lease.Dispose(); throw new InvalidOperationException("Clipboard changed before paste. Text remains in JL Voice."); }
+        lease.publishedSequence = GetClipboardSequenceNumber();
+        if (GetClipboardOwner() != owner) { lease.Dispose(); throw new InvalidOperationException("Clipboard changed before paste. Text remains in JL Voice."); }
         return lease;
     }
     internal void CheckUnchanged()
     {
-        if (GetClipboardSequenceNumber() != publishedSequence)
+        if (GetClipboardOwner() != owner || GetClipboardSequenceNumber() != publishedSequence)
             throw new InvalidOperationException("Clipboard changed before paste. Text remains in JL Voice; nothing was sent.");
     }
     private void RestoreWhileOpen()
@@ -160,10 +163,10 @@ internal sealed class ClipboardTransfer : IDisposable
     }
     internal async Task RestoreAsync()
     {
-        if (!published || GetClipboardSequenceNumber() != publishedSequence) return;
+        if (!published || GetClipboardOwner() != owner || GetClipboardSequenceNumber() != publishedSequence) return;
         // Cleanup must run even when the dictation cancellation token is cancelled.
         await OpenAsync(owner, CancellationToken.None);
-        try { if (GetClipboardSequenceNumber() == publishedSequence) RestoreWhileOpen(); }
+        try { if (GetClipboardOwner() == owner && GetClipboardSequenceNumber() == publishedSequence) RestoreWhileOpen(); }
         finally { CloseClipboard(); }
     }
     public void Dispose()
