@@ -44,6 +44,22 @@
       "settings": false
     },
     {
+      "name": "policy-block-fixture",
+      "width": 650,
+      "height": 600,
+      "language": "cs",
+      "theme": "dark",
+      "settings": false
+    },
+    {
+      "name": "compact-policy-block-fixture",
+      "width": 540,
+      "height": 440,
+      "language": "cs",
+      "theme": "dark",
+      "settings": false
+    },
+    {
       "name": "compact-english-overview",
       "width": 540,
       "height": 440,
@@ -72,6 +88,7 @@
   "limits": [
     "Hosted Windows render/focus checks, not physical Windows 11 DPI or screen-reader qualification.",
     "Recording states use synthetic PCM; transcript fixture is authored test text, not ASR output.",
-    "No microphone, speech-quality, external destination app or representative 8 GB acceptance was performed."
+    "No microphone, speech-quality, external destination app or representative 8 GB acceptance was performed.",
+    "Policy-block screenshots simulate Win32 4551; enforced Smart App Control was not tested on the hosted runner."
   ]
 }

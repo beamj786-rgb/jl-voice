@@ -4,7 +4,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 
 **Status: development preview source, not a release.** The unsigned ASR worker is currently blocked on the owner’s Windows 11 PC with Smart App Control enabled; [trusted signing is unresolved](docs/SIGNING.md). No representative 8 GB Windows hardware, real microphone, destination application, or Czech/English/mixed speech corpus has been qualified. Building successfully does not establish dictation quality or minimum hardware support.
 
-[Windows CI](https://github.com/beamj786-rgb/jl-voice/actions/runs/45022584983) passed at `2b67c1a`: self-contained CPU package build, 13 PCM/hold-key/settings checks, ten scoring/native-boundary tests, a public English CPU transcription fixture, tray startup/idle monitoring and WPF UI review. Hosted Windows CI is not representative Windows 11 low-end hardware.
+[Windows CI](https://github.com/beamj786-rgb/jl-voice/actions/runs/45026247761) passed at `39a75e9`: self-contained CPU package build, 18 PCM/hold-key/settings/error checks, ten scoring/native-boundary tests, a public English CPU transcription fixture, tray startup/idle monitoring and WPF UI review. Hosted Windows CI is not representative Windows 11 low-end hardware.
 
 ## Implemented
 
@@ -22,7 +22,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 
 ![JL Voice native overview on Windows CI](docs/ui-review/dark-overview.png)
 
-WPF UI checks cover bundled fonts, dark/light themes, eight page/viewport states down to 540 × 440, bubble focus preservation, Stop/Cancel actions and return to static idle. The screenshot is from a hosted Windows runner without a microphone. [Screenshots and review limits](docs/UI.md#verified-review--2026-11-21).
+WPF UI checks cover bundled fonts, dark/light themes, ten page/viewport states down to 540 × 440, including simulated policy errors, bubble focus preservation, Stop/Cancel actions and return to static idle. The screenshot is from a hosted Windows runner without a microphone. [Screenshots and review limits](docs/UI.md#verified-review--2026-11-22).
 
 Automatic mode currently uses upstream language detection for the recording, **not verified language switching within one recording**. No candidate model has passed Czech/English quality acceptance; the small quantized base model is an experiment, not an accuracy claim.
 

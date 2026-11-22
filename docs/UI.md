@@ -39,13 +39,13 @@ On Windows, `JLVoice.exe --ui-review NEW_OUTPUT_DIRECTORY` produces WPF `RenderT
 
 CI uploads review images and developer measurement metadata, not an application release. Rendering and same-process native focus checks do not prove behavior in external applications or physical DPI/screen-reader acceptance. Inspect the generated images before claiming visual verification.
 
-## Verified review — 2026-11-21
+## Verified review — 2026-11-22
 
-[Windows CI run 45022584983](https://github.com/beamj786-rgb/jl-voice/actions/runs/45022584983), source commit `2b67c1a6c22dc4cc5682c492f2ed24f54aea333d`, passed self-contained package creation, 13 PCM/hold-key/settings checks, ten scoring/native-boundary tests, the public English CPU fixture, tray startup/idle monitoring and WPF UI review.
+[Windows CI run 45026247761](https://github.com/beamj786-rgb/jl-voice/actions/runs/45026247761), source commit `39a75e9f9da6f9ddaaedf95f810f1939feb49045`, passed self-contained package creation, 18 PCM/hold-key/settings/error checks, ten scoring/native-boundary tests, the public English CPU fixture, tray startup/idle monitoring and WPF UI review.
 
-The changed shortcut views and bubble board were visually inspected. The [render report](ui-review/review.json) confirms all three bundled fonts loaded, no horizontal page overflow, keyboard traversal, repeated nonactivating bubble show, focus preservation across all eight bubble states and automation invocation of Start/Stop/Cancel. The settings review also exercises F9 toggle → Caps Lock hold rebinding and saves both in review-only memory; Caps Lock enforces hold mode. The 1.5-second completion timer actually returned to static idle and cleared its meter. Close-to-tray was exercised. These checks use a same-process focused WPF text box; external applications remain a separate acceptance boundary.
+The added policy-error views were visually inspected. The [render report](ui-review/review.json) confirms all three bundled fonts loaded, no horizontal page overflow, keyboard traversal, repeated nonactivating bubble show, focus preservation across all eight bubble states and automation invocation of Start/Stop/Cancel. The settings review also exercises F9 toggle → Caps Lock hold rebinding and saves both in review-only memory; Caps Lock enforces hold mode. The 1.5-second completion timer actually returned to static idle and cleared its meter. Close-to-tray was exercised. These checks use a same-process focused WPF text box; external applications remain a separate acceptance boundary.
 
-Eight page/viewport renders cover Czech dark/light main windows at 650 × 430 and settings at 650 × 650, an authored transcript fixture at 650 × 620, and English compact main/settings/top-and-bottom at 540 × 440. The custom WPF chrome is included. The settings page scrolls vertically in the compact viewport; controls and fields retain their own focus cues.
+The original eight page/viewport renders cover Czech dark/light main windows at 650 × 430 and settings at 650 × 650, an authored transcript fixture at 650 × 620, and English compact main/settings/top-and-bottom at 540 × 440. Two additional Czech policy-error fixtures at 650 × 600 and 540 × 440 verify the bounded heading and readable explanation. They simulate Win32 4551; the hosted runner does not prove Smart App Control enforcement. The custom WPF chrome is included. The settings page scrolls vertically in the compact viewport; controls and fields retain their own focus cues.
 
 | Dark main window | Light main window |
 |---|---|
@@ -57,6 +57,14 @@ Eight page/viewport renders cover Czech dark/light main windows at 650 × 430 an
 
 The bubble board uses synthetic PCM, and the transcript image contains authored test text. Neither is evidence of microphone capture or speech-recognition accuracy. Main-window screenshots show the runner's actual no-microphone state.
 
-The [raw idle probe](ui-review/idle-ci.json) ran for 12 seconds on Windows Server 2025, four logical CPUs and approximately 16 GB RAM, with the idle bubble visible and no loaded model. Steady sampled working set was 87.81 MiB, sampled peak 87.82 MiB, and observed launch-to-ready about 859 ms. No CPU time was observed during the steady sampling window. The raw report preserves sampling/cache limitations. These are hosted-CI observations, **not representative 8 GB hardware qualification or a responsiveness guarantee**.
+The [raw idle probe](ui-review/idle-ci.json) ran for 12 seconds on Windows Server 2025, four logical CPUs and approximately 16 GB RAM, with the idle bubble visible and no loaded model. Steady sampled working set was 105.68 MiB, sampled peak 105.72 MiB, and observed launch-to-ready about 852 ms. No CPU time was observed during the steady sampling window. The raw report preserves sampling/cache limitations. These are hosted-CI observations, **not representative 8 GB hardware qualification or a responsiveness guarantee**.
 
 Still unverified: representative 8 GB Windows 11 hardware, physical DPI/monitor transitions, high-contrast and screen-reader acceptance, complete keyboard-only workflows, microphone-to-external-target insertion and the mandatory Czech/English/mixed-language speech suite. No application release has been published.
+
+## Blocked-worker error view
+
+A worker launch rejected by Windows now shows a concise localized heading, a body explanation and collapsed module/error-code details. It omits the user-profile path and clears when status returns to a normal operation. Ordinary access denied is not labelled as a Smart App Control policy failure.
+
+![Simulated Windows policy error — not a passing enforcement test](ui-review/policy-block-fixture.png)
+
+[Compact policy-error fixture](ui-review/compact-policy-block-fixture.png). The owner’s actual Smart App Control block remains unresolved pending trusted signing; see [signing status](SIGNING.md). These screenshots demonstrate the error UI only.

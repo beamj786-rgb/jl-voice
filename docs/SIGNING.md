@@ -4,6 +4,8 @@
 
 The owner tested the portable Windows build on a personal Windows 11 PC with Smart App Control enabled. JL Voice opened, but Windows rejected `Process.Start` for `runtime/JLVoiceAsr.exe` with the localized message “An app control policy has blocked this file.” No microphone-to-text result was produced. This is a real clean-machine distribution blocker, not evidence of an ASR accuracy failure.
 
+The previously delivered ZIP was also inspected read-only: the worker PE security-directory offset and size are both zero, confirming it has no embedded Authenticode certificate table.
+
 The owner currently has no code-signing certificate or signing-service account. The development build is unsigned; hosted CI success does not demonstrate acceptance by Smart App Control. `BUILD-INFO.json` now records the worker's observed Authenticode status and explicitly keeps Smart App Control qualification false.
 
 ## Supported resolution
