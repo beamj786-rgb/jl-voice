@@ -85,9 +85,9 @@ const char * prompt_preset(const std::string & id) {
 // turned into loud noise. Returns the applied linear gain.
 float normalize_peak(std::vector<float> & audio) {
     float peak = 0;
-    for (float v : audio) peak = std::max(peak, std::abs(v));
+    for (float v : audio) peak = (std::max)(peak, std::abs(v));
     if (peak <= 0) return 1.0f;
-    const float gain = std::min(0.5f / peak, 31.62f);
+    const float gain = (std::min)(0.5f / peak, 31.62f);
     if (gain <= 1.0f) return 1.0f;
     for (float & v : audio) v *= gain;
     return gain;
@@ -137,7 +137,7 @@ int run(int argc, char ** argv) {
     params.temperature_inc = 0.2f;
     if (!prompt.empty()) params.initial_prompt = prompt.c_str();
     // Encoder frames are 50/s; a bounded margin keeps short dictation from paying for 30 s.
-    if (short_context) params.audio_ctx = std::min(1500, int(audio.size() / 16000.0 * 50) + 128);
+    if (short_context) params.audio_ctx = (std::min)(1500, int(audio.size() / 16000.0 * 50) + 128);
     params.print_realtime = false;
     params.print_progress = false;
     params.print_timestamps = false;
