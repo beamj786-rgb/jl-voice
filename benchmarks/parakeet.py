@@ -67,7 +67,9 @@ def main():
             start = time.perf_counter()
             result = subprocess.run([sys.executable, __file__, '--model', str(args.model), '--worker-audio', str(audio)], capture_output=True, timeout=180)
             wall_ms = 1000*(time.perf_counter()-start)
-            if result.returncode: raise RuntimeError('Parakeet worker failed; no quality result accepted')
+            if result.returncode:
+                # Explicit developer benchmark: bounded stderr helps diagnose native/package faults.
+                raise RuntimeError(f'Parakeet worker failed ({result.returncode}); no quality result accepted.\n' + result.stderr.decode('utf-8',errors='replace')[-2000:])
             row = json.loads(result.stdout)
             row.update(id=sample['id'], group=sample['language'], mode='auto', repeat=repeat, audio_sha256=digest,
                 worker_wall_ms=wall_ms, rtf=wall_ms/1000/row['audio_seconds'], score=align(sample['reference'],row['text']))

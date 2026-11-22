@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Developer-only pinned CPU benchmark dependencies
-        run: python -m pip install sherpa-onnx==1.12.40 psutil==7.2.2
+        run: python -m pip install sherpa-onnx==1.12.40 psutil==7.2.2 numpy==2.3.5
       - name: Public paired fixtures and integrity-pinned local model
         shell: pwsh
         run: |
@@ -25,11 +25,14 @@ jobs:
           python benchmarks/fetch_parakeet.py --output artifacts/parakeet-model
           if ($LASTEXITCODE -ne 0) { throw 'Parakeet model verification failed.' }
       - name: Real local Parakeet CPU quality probe
+        id: local
         shell: pwsh
         run: |
           python benchmarks/parakeet.py --model artifacts/parakeet-model/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8 --corpus artifacts/public-corpus/corpus.json --repeats 2 --output artifacts/parakeet-windows.json
           if ($LASTEXITCODE -ne 0) { throw 'Local Parakeet inference failed.' }
       - name: Self-contained Windows cloud test kit (no API request in CI)
+        id: cloud_kit
+        if: ${{ !cancelled() }}
         shell: pwsh
         run: |
           dotnet publish tools/JLVoice.NvidiaProbe -c Release -r win-x64 --self-contained true -o artifacts/NvidiaCloudTest
@@ -38,8 +41,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cloud test kit contract tests failed.' }
           Copy-Item artifacts/public-corpus artifacts/NvidiaCloudTest/public-corpus -Recurse
           Copy-Item docs/NVIDIA-PROBE.md artifacts/NvidiaCloudTest/README.md
-          Copy-Item LICENSE artifacts/NvidiaCloudTest/LICENSE.txt
-          @{ source_commit = (git rev-parse HEAD); cloud_api_executed_in_ci = $false; local_parakeet_executed = $true; release = $false; signed = $false } | ConvertTo-Json | Set-Content artifacts/NvidiaCloudTest/BUILD-INFO.json -Encoding utf8NoBOM
+          New-Item -ItemType Directory -Force artifacts/NvidiaCloudTest/licenses | Out-Null
+          Copy-Item LICENSE artifacts/NvidiaCloudTest/licenses/JLVoice-MIT.txt
+          Copy-Item LICENSE-SCOPE.md artifacts/NvidiaCloudTest/licenses/LICENSE-SCOPE.md
+          Copy-Item THIRD_PARTY_NOTICES.md artifacts/NvidiaCloudTest/licenses/THIRD_PARTY_NOTICES.md
+          $packages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { "$env:USERPROFILE/.nuget/packages" }
+          $notices = Get-ChildItem "$packages/microsoft.netcore.app.runtime.win-x64" -Recurse -File | Where-Object { $_.Name -match '^(licen[cs]e|third.party.notices)' }
+          if (-not $notices) { throw 'Self-contained runtime license notices missing.' }
+          $notices | ForEach-Object {
+            $name = $_.FullName.Substring($packages.Length) -replace '[/\\:]','_'
+            Copy-Item $_.FullName "artifacts/NvidiaCloudTest/licenses/$name"
+          }
+          $localPassed = '${{ steps.local.conclusion }}' -eq 'success'
+          @{ source_commit = (git rev-parse HEAD); cloud_api_executed_in_ci = $false; local_parakeet_executed = $localPassed; release = $false; signed = $false } | ConvertTo-Json | Set-Content artifacts/NvidiaCloudTest/BUILD-INFO.json -Encoding utf8NoBOM
           Get-ChildItem artifacts/NvidiaCloudTest -Recurse -File | ForEach-Object {
             @{ path = [IO.Path]::GetRelativePath("$pwd/artifacts/NvidiaCloudTest", $_.FullName); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
           } | ConvertTo-Json | Set-Content artifacts/NvidiaCloudTest/SHA256SUMS.json -Encoding utf8NoBOM
@@ -53,6 +67,7 @@ jobs:
             artifacts/public-corpus/corpus.json
           retention-days: 7
       - name: Owner-requested Windows cloud test kit
+        if: ${{ !cancelled() && steps.cloud_kit.conclusion == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: JLVoice-NVIDIA-Cloud-Test-Windows-x64
