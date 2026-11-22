@@ -121,7 +121,7 @@ public partial class MainWindow : Window
     private void AdjustSize()
     {
         if (reviewMode || !IsInitialized) return;
-        Height = Math.Min(SystemParameters.WorkArea.Height - 30, preferencesOpen ? Advanced.IsExpanded ? 760 : 650 : string.IsNullOrEmpty(ResultText.Text) ? 430 : 620);
+        Height = Math.Min(SystemParameters.WorkArea.Height - 30, preferencesOpen ? Advanced.IsExpanded ? 760 : 650 : NoticePanel.IsVisible ? 600 : string.IsNullOrEmpty(ResultText.Text) ? 430 : 620);
     }
     private void UpdateShortcutMode()
     {
@@ -194,8 +194,22 @@ public partial class MainWindow : Window
         if (show) { if (!bubble.IsVisible) bubble.Show(); } else bubble.Hide();
     }
     private void ResetBubble() { bubble.SetIdle(Shortcut, locale); RefreshBubble(); }
-    private void ReadyStatus() => StatusText.Text = Microphone.IsEnabled ? T("Připraveno k diktování.", "Ready to dictate.") : T("Připojte mikrofon.", "Connect a microphone.");
-    private void Notify(string text) { StatusText.Text = text; bubble.SetError(locale, !string.IsNullOrWhiteSpace(ResultText.Text)); RefreshBubble(); }
+    private void ReadyStatus() => SetStatus(Microphone.IsEnabled ? T("Připraveno k diktování.", "Ready to dictate.") : T("Připojte mikrofon.", "Connect a microphone."));
+    private void SetStatus(string text)
+    {
+        StatusText.Text = text; NoticePanel.Visibility = Visibility.Collapsed;
+        NoticeDetails.IsExpanded = false; NoticeBody.Text = NoticeDetailsText.Text = ""; AdjustSize();
+    }
+    private void Notify(string text) => ShowNotice(new ErrorNotice(text, "", ""));
+    private void Notify(Exception error) => ShowNotice(ErrorNotice.From(error, locale));
+    private void ShowNotice(ErrorNotice notice)
+    {
+        SetStatus(notice.Title); NoticeBody.Text = notice.Message; NoticeDetailsText.Text = notice.Details;
+        NoticeDetails.Header = T("Technické podrobnosti", "Technical details");
+        NoticeDetails.Visibility = string.IsNullOrEmpty(notice.Details) ? Visibility.Collapsed : Visibility.Visible;
+        NoticePanel.Visibility = string.IsNullOrEmpty(notice.Message) && string.IsNullOrEmpty(notice.Details) ? Visibility.Collapsed : Visibility.Visible;
+        AdjustSize(); bubble.SetError(locale, !string.IsNullOrWhiteSpace(ResultText.Text)); RefreshBubble();
+    }
     private void SaveClick(object sender, RoutedEventArgs e)
     {
         if (busy || capture is not null) return;
@@ -208,7 +222,7 @@ public partial class MainWindow : Window
             if (reviewMode || ConfigureShortcut()) { ReadyStatus(); ResetBubble(); }
             UpdateSummaries(); PendingText.Text = T("Uloženo.", "Saved.");
         }
-        catch (Exception error) { Notify(error.Message); }
+        catch (Exception error) { Notify(error); }
     }
     private bool ConfigureShortcut()
     {
@@ -266,13 +280,13 @@ public partial class MainWindow : Window
                 var audio = new AudioCapture(settings.Microphone); capture = audio;
                 audio.Faulted += error => PostToUi(() => { if (capture == audio) activeTask = FailCaptureAsync(audio, error); });
                 audio.Start(); ResultText.Clear(); EnterActive(); recordingTime.Restart(); recordingTimer.Start();
-                bubble.PlaceForWindow(target.Window); bubble.SetRecording(locale); RefreshBubble(); StatusText.Text = T("Nahrávám…", "Recording…"); Diagnostics.Mark("recording_started");
+                bubble.PlaceForWindow(target.Window); bubble.SetRecording(locale); RefreshBubble(); SetStatus(T("Nahrávám…", "Recording…")); Diagnostics.Mark("recording_started");
             }
-            catch (Exception error) { capture?.Dispose(); capture = null; ExitActive(); Notify(error.Message); }
+            catch (Exception error) { capture?.Dispose(); capture = null; ExitActive(); Notify(error); }
             return;
         }
         holdKey.Disarm(); busy = true; recordingTimer.Stop(); recordingTime.Stop();
-        bubble.SetProcessing(locale); RefreshBubble(); StatusText.Text = T("Přepisuji…", "Transcribing…"); Diagnostics.Mark("recording_stop_requested");
+        bubble.SetProcessing(locale); RefreshBubble(); SetStatus(T("Přepisuji…", "Transcribing…")); Diagnostics.Mark("recording_stop_requested");
         var audioSession = capture; capture = null; byte[]? wav = null;
         using var cts = new CancellationTokenSource(); cancellation = cts; var latency = Stopwatch.StartNew();
         try
@@ -280,29 +294,29 @@ public partial class MainWindow : Window
             wav = await audioSession.StopAsync(); audioSession.Dispose();
             var text = await AsrEngine.TranscribeAsync(wav, settings, cts.Token); ResultText.Text = text;
             WindowsInput.Insert(text, target); Diagnostics.Mark("text_insertion_sent");
-            StatusText.Text = T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"; bubble.SetCompleted(locale);
+            SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }
         catch (OperationCanceledException)
         {
-            if (cts.IsCancellationRequested) { Diagnostics.Mark("cancelled"); StatusText.Text = T("Zrušeno.", "Cancelled."); bubble.SetCompleted(locale, true); }
+            if (cts.IsCancellationRequested) { Diagnostics.Mark("cancelled"); SetStatus(T("Zrušeno.", "Cancelled.")); bubble.SetCompleted(locale, true); }
             else Notify(T("Přepis překročil časový limit.", "Transcription timed out."));
         }
-        catch (Exception error) { Diagnostics.Mark("failed"); Notify(error.Message); }
+        catch (Exception error) { Diagnostics.Mark("failed"); Notify(error); }
         finally { audioSession.Dispose(); if (wav is not null) Array.Clear(wav); cancellation = null; busy = false; ExitActive(); }
     }
     private async Task FailCaptureAsync(AudioCapture audio, Exception error)
     {
         holdKey.Disarm(); busy = true; capture = null; recordingTimer.Stop();
         try { await audio.StopAsync(discard: true); } catch { /* Display the original device failure below. */ }
-        finally { audio.Dispose(); busy = false; ExitActive(); } Notify(error.Message);
+        finally { audio.Dispose(); busy = false; ExitActive(); } Notify(error);
     }
     private async Task CancelAsync()
     {
         if (cancellation is { } job) { bubble.SetProcessing(locale, true); job.Cancel(); return; }
         if (capture is not { } audio) return;
         busy = true; capture = null; recordingTimer.Stop();
-        try { await audio.StopAsync(discard: true); StatusText.Text = T("Zrušeno.", "Cancelled."); bubble.SetCompleted(locale, true); }
-        catch (Exception error) { Notify(error.Message); }
+        try { await audio.StopAsync(discard: true); SetStatus(T("Zrušeno.", "Cancelled.")); bubble.SetCompleted(locale, true); }
+        catch (Exception error) { Notify(error); }
         finally { audio.Dispose(); busy = false; ExitActive(); }
     }
     internal async Task ExitAsync()

@@ -2,7 +2,7 @@
 
 Offline Czech and English dictation for Windows 11 x64. Designed first for ordinary 8 GB PCs with integrated graphics and modest CPUs; 16 GB is the secondary target. Dedicated graphics are optional, never required.
 
-**Status: development preview source, not a release.** No representative 8 GB Windows hardware, real microphone, destination application, or Czech/English/mixed speech corpus has been qualified. Building successfully does not establish dictation quality or minimum hardware support.
+**Status: development preview source, not a release.** The unsigned ASR worker is currently blocked on the owner’s Windows 11 PC with Smart App Control enabled; [trusted signing is unresolved](docs/SIGNING.md). No representative 8 GB Windows hardware, real microphone, destination application, or Czech/English/mixed speech corpus has been qualified. Building successfully does not establish dictation quality or minimum hardware support.
 
 [Windows CI](https://github.com/beamj786-rgb/jl-voice/actions/runs/45022584983) passed at `2b67c1a`: self-contained CPU package build, 13 PCM/hold-key/settings checks, ten scoring/native-boundary tests, a public English CPU transcription fixture, tray startup/idle monitoring and WPF UI review. Hosted Windows CI is not representative Windows 11 low-end hardware.
 

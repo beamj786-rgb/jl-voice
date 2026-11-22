@@ -13,6 +13,10 @@ This is an owner/developer test build, not a production release. Windows 11 x64 
 
 Do not delete or move the model, runtime, fonts or DLLs independently. Keep the whole extracted folder together. The app starts in the tray with its idle bubble; double-click the tray icon to open its window. If it is already running, exit it from the tray before starting another build.
 
+## If Windows blocks the speech worker
+
+If the app opens but reports that an app control policy blocked `JLVoiceAsr.exe`, transcription cannot proceed on that machine. The current unsigned build is known to be blocked on the owner's Windows 11 PC with Smart App Control enabled. Do not disable protection or assume another unsigned download fixes the problem. Check [the signing status](https://github.com/beamj786-rgb/jl-voice/blob/main/docs/SIGNING.md); a trusted signed build is still needed. The updated UI shows the numeric Windows code without the long user-profile path.
+
 ## First functional check (about 10–15 minutes)
 
 Use non-sensitive sample text. No audio or transcript history is saved by default. Do not send private dictation, clipboard contents or unrelated screenshots as a bug report.

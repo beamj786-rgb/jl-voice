@@ -57,6 +57,13 @@ public partial class MainWindow
         await Capture("transcript-fixture");
         InvokeButton(ClearButton); await SettleAsync();
         if (ResultText.Text.Length != 0 || LastResult.IsVisible) issues.Add("Clearing did not hide the last transcript.");
+        Width = 650; Height = 600;
+        Notify(new AsrStartException(4551, new System.ComponentModel.Win32Exception(4551, @"C:\Users\FixtureUser\runtime\JLVoiceAsr.exe policy blocked")));
+        NoticeBody.Text = "UI TEST · simulovaná chyba Windows 4551.\n" + NoticeBody.Text;
+        await Capture("policy-block-fixture");
+        Width = 540; Height = 440; await Capture("compact-policy-block-fixture");
+        if (!NoticePanel.IsVisible || StatusText.ActualHeight > 65 || (StatusText.Text + NoticeBody.Text + NoticeDetailsText.Text).Contains("FixtureUser")) issues.Add("Policy error layout leaked the profile path or lost its bounded heading.");
+        ReadyStatus(); ResetBubble();
         UiLanguage.SelectedIndex = 1; Width = 540; Height = 440; Navigate(false); await Capture("compact-english-overview");
         Navigate(true); await Capture("compact-english-settings"); Advanced.IsExpanded = true; await SettleAsync(); PageScroll.ScrollToEnd(); await Capture("compact-english-settings-bottom"); PageScroll.ScrollToTop();
         DictationLanguage.Focus(); var originalFocus = Keyboard.FocusedElement;
@@ -67,7 +74,7 @@ public partial class MainWindow
         File.WriteAllText(Path.Combine(directory, "review.json"), JsonSerializer.Serialize(new
         {
             framework = "WPF", software_rendering = true, fonts_loaded = Appearance.FontsLoaded, states, issues,
-            limits = new[] { "Hosted Windows render/focus checks, not physical Windows 11 DPI or screen-reader qualification.", "Recording states use synthetic PCM; transcript fixture is authored test text, not ASR output.", "No microphone, speech-quality, external destination app or representative 8 GB acceptance was performed." }
+            limits = new[] { "Hosted Windows render/focus checks, not physical Windows 11 DPI or screen-reader qualification.", "Recording states use synthetic PCM; transcript fixture is authored test text, not ASR output.", "No microphone, speech-quality, external destination app or representative 8 GB acceptance was performed.", "Policy-block screenshots simulate Win32 4551; enforced Smart App Control was not tested on the hosted runner." }
         }, new JsonSerializerOptions { WriteIndented = true }));
         if (issues.Count != 0) throw new InvalidOperationException(string.Join(Environment.NewLine, issues));
     }

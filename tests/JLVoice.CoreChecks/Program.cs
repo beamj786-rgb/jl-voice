@@ -25,3 +25,13 @@ foreach (var option in DictationKeys.Options) (new Settings { Key = option.Code 
 (new Settings { Key = 0x78, PushToTalk = false }).Validate();
 try { (new Settings { Key = DictationKeys.CapsLock, PushToTalk = false }).Validate(); throw new Exception("Caps Lock toggle accepted"); }
 catch (InvalidDataException) { Console.WriteLine("PASS: Caps Lock is hold-only; legacy F9 toggle settings remain valid"); }
+
+foreach (var code in new[] { 4551, 1260, 577 })
+{
+    var error = new AsrStartException(code, new System.ComponentModel.Win32Exception(code, @"C:\Users\SensitiveName\runtime\JLVoiceAsr.exe blocked"));
+    var notice = ErrorNotice.From(error, "cs");
+    Check(error.PolicyBlocked && notice.Title.Contains("Windows") && notice.Details.Contains(code.ToString()) && !(notice.Title + notice.Message + notice.Details).Contains("SensitiveName"), $"policy failure {code} has concise localized UI without the profile path");
+}
+var denied = new AsrStartException(5, new System.ComponentModel.Win32Exception(5));
+Check(!denied.PolicyBlocked && !ErrorNotice.From(denied, "en").Message.Contains("unsigned"), "access denied is not misdiagnosed as Smart App Control");
+Check(ErrorNotice.From(new IOException(new string('x', 5000)), "cs").Message.Length <= 601, "unexpected technical messages cannot fill the window without bound");

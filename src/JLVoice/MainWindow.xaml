@@ -21,7 +21,13 @@
         <ScrollViewer x:Name="PageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,4,4,0">
           <Grid>
             <StackPanel x:Name="Overview">
-              <TextBlock x:Name="StatusText" FontFamily="{DynamicResource DisplayFont}" FontSize="24" FontWeight="Light" Margin="0,0,0,14" AutomationProperties.LiveSetting="Polite"/>
+              <TextBlock x:Name="StatusText" MaxHeight="64" TextTrimming="CharacterEllipsis" FontFamily="{DynamicResource DisplayFont}" FontSize="24" FontWeight="Light" Margin="0,0,0,14" AutomationProperties.LiveSetting="Polite"/>
+              <StackPanel x:Name="NoticePanel" Visibility="Collapsed" Margin="0,0,0,18">
+                <TextBlock x:Name="NoticeBody" FontSize="14" Foreground="{DynamicResource DimBrush}" Margin="0,0,0,8"/>
+                <Expander x:Name="NoticeDetails" Foreground="{DynamicResource DimBrush}">
+                  <TextBlock x:Name="NoticeDetailsText" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+                </Expander>
+              </StackPanel>
               <TextBlock x:Name="ShortcutText" FontFamily="{DynamicResource MonoFont}" FontSize="20" Margin="0,0,0,16"/>
               <TextBlock x:Name="InstructionText" Style="{StaticResource Muted}"/>
               <TextBlock x:Name="LanguageSummary" Style="{StaticResource Muted}" Margin="0,5,0,22"/>

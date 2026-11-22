@@ -1,5 +1,7 @@
 # Known gaps and limitations
 
+- **Observed Windows 11 blocker:** the owner’s personal PC with Smart App Control enabled blocks the unsigned `JLVoiceAsr.exe` worker. Hosted CI does not enforce that policy. A new unsigned ZIP or UI error fix does not resolve it; trusted publisher signing and testing under the enabled policy are required. No signing certificate/service is available yet. See [signing status](SIGNING.md).
+
 - Hosted Windows CI passes native CPU package creation, five PCM checks, ten scoring/native-boundary tests, public-English-fixture inference and tray startup. No real microphone, low-end physical hardware or representative language-quality acceptance has run.
 - No complete portable runtime/model package has been executed on a clean offline Windows 11 machine. The packaging script passes on a developer-tool-equipped hosted Windows runner; that does not prove clean-machine acceptance.
 - Base q5_1 is an unaccepted experimental candidate. Czech, English, punctuation, silence hallucinations and mixed-language accuracy are unknown. Single-recording language switching is not specifically implemented.

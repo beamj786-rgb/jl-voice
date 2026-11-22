@@ -1,10 +1,17 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Text;
 
 namespace JLVoice;
 
 internal static class AsrEngine
 {
+    private static Process StartWorker(ProcessStartInfo start)
+    {
+        try { return Process.Start(start) ?? throw new IOException("Cannot start the bundled speech engine."); }
+        catch (Win32Exception error) { throw new AsrStartException(error.NativeErrorCode, error); }
+    }
+
     // One bounded CPU-only worker per dictation. Exit releases all model memory.
     // Audio goes through stdin; it is never written to a temporary audio file.
     public static async Task<string> TranscribeAsync(byte[] wav, Settings settings, CancellationToken token)
@@ -22,7 +29,7 @@ internal static class AsrEngine
         };
         foreach (var arg in new[] { "--model", model, "--language", settings.Language, "--threads", settings.Threads.ToString(), "--cpu-only" })
             start.ArgumentList.Add(arg);
-        using var process = Process.Start(start) ?? throw new IOException("Cannot start the bundled speech engine.");
+        using var process = StartWorker(start);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromMinutes(5));
         using var registration = timeout.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { } });
