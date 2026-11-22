@@ -47,7 +47,7 @@
               </Grid>
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <StackPanel><TextBlock x:Name="KeyLabel" Style="{StaticResource Muted}" Margin="0,0,0,7"/><ComboBox x:Name="ShortcutKey" AutomationProperties.LabeledBy="{Binding ElementName=KeyLabel}"/></StackPanel>
+                <StackPanel><TextBlock x:Name="KeyLabel" Style="{StaticResource Muted}" Margin="0,0,0,7"/><ComboBox x:Name="ShortcutKey" AutomationProperties.LabeledBy="{Binding ElementName=KeyLabel}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></StackPanel>
                 <CheckBox x:Name="PushToTalk" Grid.Column="2" VerticalAlignment="Bottom"/>
               </Grid>
               <TextBlock x:Name="ShortcutHelp" Style="{StaticResource Muted}" Margin="0,8,0,10"/>

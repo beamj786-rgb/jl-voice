@@ -43,7 +43,7 @@ public partial class MainWindow : Window
         locale = settings.UiLanguage;
         InitializeComponent(); Icon = BitmapFrame.Create(new Uri(Path.Combine(AppContext.BaseDirectory, "assets", "brand", "JLVoice.ico")));
         DictationLanguage.ItemsSource = new[] { "", "Čeština", "English" }; DictationLanguage.SelectedIndex = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
-        ShortcutKey.DisplayMemberPath = nameof(DictationKey.Name); ShortcutKey.SelectedValuePath = nameof(DictationKey.Code);
+        ShortcutKey.SelectedValuePath = nameof(DictationKey.Code);
         ShortcutKey.ItemsSource = DictationKeys.Options; ShortcutKey.SelectedValue = settings.Key;
         PushToTalk.IsChecked = settings.PushToTalk; IdleBubble.IsChecked = settings.ShowIdleBubble;
         Theme.ItemsSource = new[] { "", "", "" }; Theme.SelectedIndex = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };

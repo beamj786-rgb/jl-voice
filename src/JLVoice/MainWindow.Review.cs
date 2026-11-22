@@ -41,6 +41,11 @@ public partial class MainWindow
             states.Add(new { name, width = ActualWidth, height = ActualHeight, language = locale, theme = ThemeName, settings = preferencesOpen });
         }
         if (!Appearance.FontsLoaded) issues.Add("Bundled font loading failed.");
+        Navigate(true); ShortcutKey.SelectedValue = 0x78; PushToTalk.IsChecked = false;
+        InvokeButton(SaveButton); await SettleAsync();
+        if (settings.Key != 0x78 || settings.PushToTalk || !PushToTalk.IsEnabled) issues.Add("F9 toggle selection did not round-trip through settings.");
+        ShortcutKey.SelectedValue = DictationKeys.CapsLock; InvokeButton(SaveButton); await SettleAsync();
+        if (settings.Key != DictationKeys.CapsLock || !settings.PushToTalk || PushToTalk.IsEnabled || ShortcutKey.ActualHeight > 45) issues.Add("Caps Lock selection did not enforce hold mode or its caption overflowed.");
         foreach (var light in new[] { false, true })
         {
             Theme.SelectedIndex = light ? 1 : 0; UiLanguage.SelectedIndex = 0; Width = 650; Height = 430; Navigate(false);
