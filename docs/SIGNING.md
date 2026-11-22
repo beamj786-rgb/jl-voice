@@ -79,3 +79,31 @@ Additional official sources checked 2026-11-22:
 - [Microsoft Store individual registration](https://learn.microsoft.com/en-us/windows/apps/publish/whats-new-individual-developer)
 - [Microsoft Store MSIX signing](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options)
 - [SignPath Foundation terms](https://signpath.org/terms)
+
+## Verified preparation — 2026-11-22
+
+[Windows CI run 45028112050](https://github.com/beamj786-rgb/jl-voice/actions/runs/45028112050), source `f740166c1dec108c8dcdf0af564e9652787a9201`, passed packaging, the Windows PowerShell 5.1 integrity helper, signing-preparation checks, the existing core/native tests, CPU fixture and UI review. The archived inventory reports **412 PE files: 395 Valid, 17 NotSigned**. The ASR worker is NotSigned; all-code validity and SAC qualification remain false.
+
+Unsigned files in this build:
+
+```text
+JLVoice.dll
+JLVoice.exe
+NAudio.Core.dll
+NAudio.WinMM.dll
+runtime/ggml-base.dll
+runtime/ggml-cpu-alderlake.dll
+runtime/ggml-cpu-cannonlake.dll
+runtime/ggml-cpu-cascadelake.dll
+runtime/ggml-cpu-haswell.dll
+runtime/ggml-cpu-icelake.dll
+runtime/ggml-cpu-sandybridge.dll
+runtime/ggml-cpu-skylakex.dll
+runtime/ggml-cpu-sse42.dll
+runtime/ggml-cpu-x64.dll
+runtime/ggml.dll
+runtime/JLVoiceAsr.exe
+runtime/whisper.dll
+```
+
+CI explicitly rejected the unsigned package, a missing certificate and a temporary self-signed test identity, verified unchanged package integrity after rejection, and repeated finalization with consistent hashes and no manifest self-entry. This proves the preparation and negative checks only. There is no signed, SAC-qualified Windows ZIP yet. The owner’s distribution/certificate choice and real publisher enrollment remain required.
