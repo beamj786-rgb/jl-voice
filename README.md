@@ -26,6 +26,12 @@ WPF UI checks cover bundled fonts, dark/light themes, eight page/viewport states
 
 Automatic mode currently uses upstream language detection for the recording, **not verified language switching within one recording**. No candidate model has passed Czech/English quality acceptance; the small quantized base model is an experiment, not an accuracy claim.
 
+## Try a Windows test build
+
+An owner/developer can manually run **Actions → Development build checks → Run workflow**, enable **Upload a portable Windows test package after checks pass**, and download `JLVoice-Windows-x64-test` from the successful run. Extract the whole artifact into a new writable folder and launch `JLVoice.exe`. The runtime, CPU worker, model and fonts are included; no SDK, Python or separate model installation is needed. This is an unsigned temporary development artifact, not a production release. Ordinary pushes upload only UI/measurement evidence.
+
+See [the portable testing guide](docs/TESTING.md) for Czech/English/mixed-speech checks, bubble/cancellation/focus tests, offline verification and a short bug report template. Testing on a 16 GB PC does not qualify the primary 8 GB target.
+
 ## Developer build
 
 Use .NET SDK 10.0.404 (or compatible patch), PowerShell 7, Git, CMake and Visual Studio C++ build tools on Windows. These are build-machine requirements, not end-user dependencies.
