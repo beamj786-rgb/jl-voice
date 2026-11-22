@@ -1,6 +1,10 @@
 # Benchmark protocol and evidence
 
-## Current evidence
+## Latest paired probe
+
+See [the Caps/STT sprint report](STT-CAPS-SPRINT.md) for the actual pinned public CZ/EN Base/Small CPU comparison, WER/CER, inference latency, worker peak RAM/CPU, source identity and raw evidence. This narrow probe does not qualify dictation quality or minimum hardware. `compare.py` enforces matching sample hashes/modes/repeats across models; `fetch_public.py` prepares the attributed public corpus.
+
+## Earlier plumbing evidence
 
 The Windows-targeted application builds and a self-contained win-x64 publish was produced on Linux during bootstrap. Ten tests pass: five scoring checks (edit counts, silence insertions, Czech diacritics, canonical Unicode, case/punctuation normalization) and five native input-boundary checks. The native CPU worker also builds on Linux and transcribes upstream's public 11-second `samples/jfk.wav` with the pinned multilingual base q5_1 model, through the real stdin/stdout adapter. This is a narrow English fixture smoke test, **not representative language quality, Windows runtime acceptance or minimum-hardware qualification**.
 

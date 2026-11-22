@@ -23,12 +23,19 @@ internal static class WindowsInput
         public int Left, Top, Right, Bottom;
     }
     public readonly record struct Target(IntPtr Window, IntPtr Control);
+    internal static Target TryCaptureTarget()
+    {
+        var window = GetForegroundWindow();
+        var info = new GuiInfo { Size = (uint)Marshal.SizeOf<GuiInfo>() };
+        return window != IntPtr.Zero && GetGUIThreadInfo(0, ref info) && info.Focus != IntPtr.Zero && window == GetForegroundWindow()
+            ? new Target(window, info.Focus) : default;
+    }
     public static Target CaptureTarget()
     {
-        var info = new GuiInfo { Size = (uint)Marshal.SizeOf<GuiInfo>() };
-        if (!GetGUIThreadInfo(0, ref info) || info.Focus == IntPtr.Zero)
+        var target = TryCaptureTarget();
+        if (target == default)
             throw new InvalidOperationException("Cannot identify the focused input control. Focus a supported text field and try again.");
-        return new Target(GetForegroundWindow(), info.Focus);
+        return target;
     }
     [StructLayout(LayoutKind.Sequential)] private struct Keyboard { public ushort Key, Scan; public uint Flags, Time; public UIntPtr Extra; }
     [StructLayout(LayoutKind.Explicit, Size = 40)] private struct Input { [FieldOffset(0)] public uint Type; [FieldOffset(8)] public Keyboard Key; }

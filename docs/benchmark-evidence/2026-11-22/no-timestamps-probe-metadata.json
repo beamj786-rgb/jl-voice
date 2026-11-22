@@ -1,0 +1,7 @@
+{
+  "baseline_source_commit": "3ccc8aa39e1bac283a7ca8f0918cd24ba7c058d1",
+  "experimental_change": "params.no_timestamps = true;",
+  "experimental_cpp_sha256": "03eb42cac43582e709f1e44ba9fd777d63d85e7fa822435876985074546fb864",
+  "environment": "Linux managed container; memory.max=8589934592; cpu.max=200000 100000; physical Windows/8 GB hardware acceptance=false",
+  "conclusion": "Czech WER remained 80% on this small probe; no evidence to adopt a new default. Windows and Linux timing results must not be mixed."
+}

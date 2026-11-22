@@ -18,12 +18,15 @@ public partial class MainWindow
         {
             if (!capsHold.Down(now, !busy && capture is null && !closing && !suspended)) return;
             var version = capsHold.Version;
+            // Cheap HWND snapshot at physical down; no capture, I/O or STT in the hook.
+            var originalTarget = WindowsInput.TryCaptureTarget();
             PostToUi(() =>
             {
                 if (version != capsHold.Version || capsHold.Phase != DictationPhase.Pending) return;
                 try
                 {
-                    capsTarget = WindowsInput.CaptureTarget();
+                    // A missing text target must not break ordinary short Caps taps.
+                    capsTarget = originalTarget;
                     pendingVersion = version;
                     pendingHold.Interval = TimeSpan.FromMilliseconds(Math.Max(1, settings.HoldThresholdMs - (Environment.TickCount64 - capsHold.DownAt)));
                     pendingHold.Start();
@@ -53,7 +56,7 @@ public partial class MainWindow
         pendingHold.Stop();
         try
         {
-            if (capsTarget.Window == handle || WindowsInput.CaptureTarget() != capsTarget || busy || capture is not null || suspended || closing)
+            if (capsTarget.Window == IntPtr.Zero || capsTarget.Window == handle || WindowsInput.CaptureTarget() != capsTarget || busy || capture is not null || suspended || closing)
             { capsHold.Cancel(); return; }
             activeTask = ToggleAsync(capsTarget);
         }

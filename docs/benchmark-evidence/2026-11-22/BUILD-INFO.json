@@ -1,0 +1,13 @@
+{
+  "profile": "CPU-only development test",
+  "built_utc": "2026-11-22T17:47:39.8222085Z",
+  "smart_app_control_qualified": false,
+  "source_commit": "3ccc8aa39e1bac283a7ca8f0918cd24ba7c058d1",
+  "release": false,
+  "framework": "WPF",
+  "runtime": "win-x64",
+  "model": "ggml-base-q5_1.bin",
+  "worker_signature_status": "NotSigned",
+  "all_code_signatures_valid": false,
+  "signing_status": "incomplete-signatures-development"
+}

@@ -19,7 +19,7 @@ Audited starting source: `f44fe7a3db1d7a0730026cab483e9193f0656e7d`. The owner's
 
 ## Caps lifecycle and races
 
-`IDLE → PENDING → RECORDING → TRANSCRIBING → IDLE`. A physical Caps down is consumed, stores monotonic time and posts lightweight pending setup to the UI. A one-shot UI timer starts capture only while the same generation is held and the original native target remains focused. Hook callbacks never open the microphone or run STT. A physical Caps up is consumed; a short committed tap sends one tagged Caps down/up pair. Own injected events and other injected input pass through; unrelated physical keys are never suppressed.
+`IDLE → PENDING → RECORDING → TRANSCRIBING → IDLE`. A physical Caps down is consumed, stores monotonic time and a cheap original-window/control snapshot, and posts lightweight pending setup to the UI. Even if the UI callback is delayed, switching windows cannot silently retarget capture; missing text focus does not suppress a short tap. A one-shot UI timer starts capture only while the same generation is held and the original native target remains focused. Hook callbacks never open the microphone or run STT. A physical Caps up is consumed; a short committed tap sends one tagged Caps down/up pair. Own injected events and other injected input pass through; unrelated physical keys are never suppressed.
 
 Long holds send no Caps toggle, so the previous toggle state is not rewritten. Shift is not swallowed; insertion refuses held modifiers. Auto-repeat cannot create another pending/recording session. A completed stop is tied to the actual capture object, so a later rapid key press cannot drop that stop or stop a different recording. Cancellation invalidates timer/start generations and disarms the current physical hold until release. Session lock/disconnect, suspend, graceful shutdown, microphone/worker errors and cancellation clean up owned work; resume does not treat an existing held key as a fresh press.
 
@@ -45,7 +45,7 @@ Python is a developer benchmark dependency only; the portable app includes .NET,
 - Local WPF and desktop-check project compilation: passed during implementation.
 - Deterministic PCM/hold/settings/error checks: passed during implementation, including threshold edges, duplicate release, 100 rapid taps, repeat, busy tap/hold, configured threshold, cancellation generation and recovery.
 - Native input boundary and WER/CER scoring checks: passed locally with the actual Linux worker.
-- Hosted Windows package, actual native input, paired quality probe, model-selector/retention UI checks: pending the final CI candidate; update below with the exact run.
+- [Hosted Windows run 45051175776](https://github.com/beamj786-rgb/jl-voice/actions/runs/45051175776), source `3ccc8aa39e1bac283a7ca8f0918cd24ba7c058d1`: package/publish, 34 core checks, 11 scoring/native boundary tests, native edit-control exact Unicode/clipboard/focus/cancellation checks, tagged Caps toggle checks, paired CZ/EN probe, idle monitoring, and model-selector/retention/layout UI checks passed. This is a hosted Windows Server runner with four logical CPUs and approximately 16 GB RAM; it is not physical Windows 11 or 8 GB qualification. Later source changes require their own build gate.
 - **Not performed:** physical keyboard/hook timing, Caps+Shift with actual devices, Notepad/browser acceptance, global-hook conflicts, session lock/sleep on a user desktop, microphone device faults, clean offline Windows 11 and representative 8 GB hardware. No production release qualification.
 
 ## Remaining limitations
@@ -53,3 +53,56 @@ Python is a developer benchmark dependency only; the portable app includes .NET,
 Base/Small remain experimental. Automatic language switching, Czech punctuation, natural/mixed speech and silence/noise need broader real recordings. Native target guards cannot distinguish browser DOM fields sharing a native HWND. Paced insertion adds about 4 ms per Unicode scalar plus scheduling overhead; focus changes or cancellation may leave partial text. No clipboard paste fallback or password-field detection is added. Memory-only developer replay explicitly retains one bounded clip until replaced, unchecked or exit and is off on relaunch.
 
 Smart App Control trust is unchanged: original binaries and some vendor DLLs remain unsigned. Win32 4551 is handled without asking users to weaken protection. A trusted signed chain and actual enabled-policy test are still needed for blocked PCs; Foundation eligibility enquiry is pending. No production build is replaced and no release/deployment is created.
+
+## Measured Windows paired probe
+
+Raw [reports and corpus provenance](benchmark-evidence/2026-11-22/) preserve the exact runtime/model/audio hashes and source BUILD-INFO. Six distinct recordings, three per language, one run per model/mode, CPU-only, two worker threads, below-normal priority. WER/CER are error rates: lower is better. RAM is OS-reported worker peak working set after inference; it excludes the WPF process. Times below are median inference only, excluding model load, playback and insertion.
+
+| Model | Mode | WER | CER | Median inference | Peak worker RAM |
+|---|---|---:|---:|---:|---:|
+| ggml-base-q5_1.bin | cs/auto | 90.0% | 44.7% | 2.63 s | 213.2 MiB |
+| ggml-base-q5_1.bin | cs/cs | 90.0% | 44.7% | 1.60 s | 212.2 MiB |
+| ggml-base-q5_1.bin | en/auto | 35.5% | 12.9% | 2.28 s | 212.1 MiB |
+| ggml-base-q5_1.bin | en/en | 35.5% | 12.9% | 1.32 s | 211.9 MiB |
+| ggml-small-q5_1.bin | cs/auto | 80.0% | 29.5% | 8.20 s | 477.5 MiB |
+| ggml-small-q5_1.bin | cs/cs | 80.0% | 29.5% | 4.40 s | 477.9 MiB |
+| ggml-small-q5_1.bin | en/auto | 25.8% | 11.0% | 8.21 s | 477.9 MiB |
+| ggml-small-q5_1.bin | en/en | 25.8% | 11.0% | 4.36 s | 477.6 MiB |
+
+Small improves these error rates but remains poor on the selected Czech clips and costs more CPU time/memory. This does not justify changing the default or claiming usable Czech dictation. Auto added latency on these short clips and had no aggregate WER improvement. Only 20 Czech and 31 English reference words were evaluated; unusual names, short-clip selection and tokenization (e.g. WiFi versus Wi-Fi) make this probe unsuitable as a general accuracy estimate. Broader natural/mixed speech and silence/noise evaluation remain open. No Medium run or minimum-hardware acceptance is claimed.
+
+## Changed files
+
+- `.github/workflows/build.yml`
+- `README.md`
+- `benchmarks/compare.py`
+- `benchmarks/fetch_public.py`
+- `benchmarks/run.py`
+- `benchmarks/score.py`
+- `benchmarks/test_score.py`
+- `docs/PRIVACY.md`
+- `docs/STT-CAPS-SPRINT.md`
+- `docs/TESTING.md`
+- `models/manifest.json`
+- `native/worker.cpp`
+- `scripts/package.ps1`
+- `src/JLVoice/AsrEngine.cs`
+- `src/JLVoice/CapsHoldState.cs`
+- `src/JLVoice/Diagnostics.cs`
+- `src/JLVoice/MainWindow.Caps.cs`
+- `src/JLVoice/MainWindow.Replay.cs`
+- `src/JLVoice/MainWindow.Review.cs`
+- `src/JLVoice/MainWindow.xaml`
+- `src/JLVoice/MainWindow.xaml.cs`
+- `src/JLVoice/Program.cs`
+- `src/JLVoice/Settings.cs`
+- `src/JLVoice/WindowsInput.cs`
+- `tests/JLVoice.CoreChecks/JLVoice.CoreChecks.csproj`
+- `tests/JLVoice.CoreChecks/Program.cs`
+- `tests/JLVoice.DesktopChecks/JLVoice.DesktopChecks.csproj`
+- `tests/JLVoice.DesktopChecks/Program.cs`
+- `docs/benchmark-evidence/2026-11-22/`: raw paired reports, corpus provenance and build identity.
+
+## Additional decoding probe
+
+A temporary Small build with `params.no_timestamps=true` was run on the same six audio hashes on Linux (two-thread CPU quota, 8 GiB container memory limit; not representative physical hardware). Czech WER remained 80% and English WER was 35.5% in that probe. Raw results and the exact one-line experimental configuration/source hash are retained with the evidence. This supplied no basis for changing the production decoding defaults; the experimental flag is not shipped. Windows and Linux latency figures are not combined.
