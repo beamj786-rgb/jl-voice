@@ -64,7 +64,7 @@ public partial class MainWindow
         CloudConsent.IsChecked = false;
         try { RequireCloudReady(); issues.Add("Revoked cloud consent remained usable."); }
         catch (CloudSpeechException error) when (error.Failure == CloudFailure.Consent) { }
-        InvokeButton(ForgetCloudKey);
+        InvokeButton(ForgetCloudKey); await SettleAsync();
         if (sessionNvidiaKey is not null || NvidiaKey.Password.Length != 0) issues.Add("Forget did not clear the session key.");
         Provider.SelectedIndex = 0; DictationLanguage.SelectedIndex = 0; Theme.SelectedIndex = 0;
         InvokeButton(SaveButton); await SettleAsync();
