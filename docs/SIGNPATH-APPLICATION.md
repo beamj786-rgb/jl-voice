@@ -1,6 +1,6 @@
-# SignPath Foundation application — draft, not submitted
+# SignPath Foundation — eligibility enquiry sent; application not submitted
 
-Prepared for owner review. **No form, email, GitHub issue or signing request has been sent.** This draft does not claim eligibility or approval. No account was created, provider terms accepted or repository integration installed.
+On 2026-11-22, with explicit owner authorization, a non-binding eligibility enquiry was sent by email to the official SignPath support contact for the Foundation team. Gmail confirmed the message as sent; provider receipt, reply and eligibility remain unconfirmed. **No enrollment form or signing request has been submitted.** No account was created, provider terms accepted or repository integration installed. Private sender/contact details are deliberately omitted from this public document.
 
 ## Public project details
 
@@ -35,7 +35,7 @@ Product: `JL Voice`; product version `0.1.0`; file version `0.1.0.0`. Source ide
 
 The full current inventory is documented in SIGNING.md. The last checked bundle had 17 unsigned files: three original-project binaries and 14 third-party binaries (NAudio, whisper and ggml/CPU backends). The Foundation's upstream restrictions matter here. We cannot assume those 14 files are eligible under our project identity, or that an own-binary signature alone solves enforced Smart App Control.
 
-A proposed eligibility enquiry, **not sent**:
+The owner-approved eligibility enquiry, **sent 2026-11-22**:
 
 > We maintain JL Voice, a new MIT-licensed Windows dictation project with separately licensed dependencies and reserved brand artwork. Could the Foundation consider a development-preview project at this stage, and clarify eligible artifact/signing scope for our own wrapper/app versus unchanged upstream NAudio and whisper.cpp/ggml DLLs? We will not claim third-party files as original project code. We also need to clarify acceptable brand-asset distribution and the evidence expected before enrollment. Our current goal is a portable ZIP that can be tested with Smart App Control enabled; we do not claim that goal is already met.
 
@@ -48,7 +48,7 @@ A proposed eligibility enquiry, **not sent**:
 - Contact details, MFA and human approval roles remain unconfirmed. No provisioned Foundation organization, signing policy or API credential exists.
 - The local `sign-package.ps1` helper is for a directly available CA-backed Windows certificate provider. Foundation uses its own approved remote build/signing integration; this must be configured only after acceptance and access approval. Returned bytes need the existing finalization/verification stages before any signed-ZIP claim.
 
-Owner review of this draft and explicit authorization naming the Foundation/application are required before any enquiry or application is sent. The reviewed message must state these limitations rather than claim completed release/hardware acceptance or existing sponsorship.
+The owner authorized the non-binding enquiry only. Enrollment, acceptance of provider terms, repository access and signing requests require separate authorization. The sent message included the public repository and this document, disclosed the lack of established reputation and a qualified production release, and explicitly excluded enrollment or a signing request.
 
 Official references: https://signpath.org/terms · https://signpath.org/apply · https://docs.signpath.io/trusted-build-systems/github .
 
@@ -56,4 +56,8 @@ Official references: https://signpath.org/terms · https://signpath.org/apply ·
 
 [Windows CI run 45031058913](https://github.com/beamj786-rgb/jl-voice/actions/runs/45031058913), source `e9a2e2309c9e74edee8d6e7e0cf457436fa1b94b`, passed the original-binary metadata check and the existing packaging, integrity, signing-negative, core/native inference and UI checks. `JLVoice.exe`, `JLVoice.dll` and `runtime/JLVoiceAsr.exe` each report ProductName `JL Voice`, ProductVersion `0.1.0` and FileVersion `0.1.0.0`. GitHub now identifies the root source license as MIT.
 
-The archived readiness report explicitly records Foundation approval/submission, full-bundle licensing, dependency signing coverage and SAC qualification as false. This verifies preparation only. No provider access or message transmission is established by a successful build. The owner is being asked separately whether to send the eligibility enquiry and what contact information may be used; private contact details must not be added to this public document.
+The archived readiness report explicitly records Foundation approval/submission, full-bundle licensing, dependency signing coverage and SAC qualification as false. This verifies preparation only. No provider access or message transmission is established by a successful build. The owner subsequently authorized the eligibility enquiry and supplied its reply contact privately; these contact details must not be added to this public document.
+
+## Contact route checked 2026-11-22
+
+The Foundation application at https://signpath.org/apply requires account-name fields and agreement to its Code of Conduct. It was not submitted for this enquiry. https://signpath.io/support lists `support@signpath.io` for first interactions and single requests; the enquiry was sent there for the Foundation team. No acceptance or response is implied.
