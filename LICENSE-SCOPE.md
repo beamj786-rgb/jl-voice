@@ -5,6 +5,7 @@ The owner approved the MIT license on 2026-11-22 for JL Voice's original applica
 This grant does **not** relicense:
 
 - Third-party source, binaries, models or notices, including .NET/WPF, NAudio, whisper.cpp/ggml and Whisper weights. Their existing licenses continue to apply; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Public Google FLEURS references and derived benchmark transcripts/results under `docs/benchmark-evidence`: source dataset content remains CC-BY-4.0, attributed to Google and contributors. Corpus provenance and source revision are preserved beside the reports; the dataset audio is not bundled with the app.
 - Bundled Funnel Display, Funnel Sans and Geist Mono font files, which retain their accompanying SIL Open Font License terms.
 - Original JL Automation Orbit marks, logos, app icons and other owner-supplied brand artwork under `assets/brand`. Their copyright/trademark rights remain reserved; inclusion in the current application does not grant a general right to reuse those assets as someone else's branding.
 

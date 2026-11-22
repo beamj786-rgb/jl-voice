@@ -69,20 +69,32 @@ Raw [reports and corpus provenance](benchmark-evidence/2026-11-22/) preserve the
 | ggml-small-q5_1.bin | en/auto | 25.8% | 11.0% | 8.21 s | 477.9 MiB |
 | ggml-small-q5_1.bin | en/en | 25.8% | 11.0% | 4.36 s | 477.6 MiB |
 
-Small improves these error rates but remains poor on the selected Czech clips and costs more CPU time/memory. This does not justify changing the default or claiming usable Czech dictation. Auto added latency on these short clips and had no aggregate WER improvement. Only 20 Czech and 31 English reference words were evaluated; unusual names, short-clip selection and tokenization (e.g. WiFi versus Wi-Fi) make this probe unsuitable as a general accuracy estimate. Broader natural/mixed speech and silence/noise evaluation remain open. No Medium run or minimum-hardware acceptance is claimed.
+Small improves these error rates but remains poor on the selected Czech clips and costs more CPU time/memory. This does not justify changing the default or claiming usable Czech dictation. Auto added latency on these short clips and had no aggregate WER improvement. Only 20 Czech and 31 English reference words were evaluated; unusual names, short-clip selection and tokenization (e.g. WiFi versus Wi-Fi) make this probe unsuitable as a general accuracy estimate. Broader natural/mixed speech and silence/noise evaluation remain open. A separate two-clip Medium Linux probe is documented below; no minimum-hardware acceptance is claimed.
 
 ## Changed files
 
 - `.github/workflows/build.yml`
+- `LICENSE-SCOPE.md`
 - `README.md`
+- `THIRD_PARTY_NOTICES.md`
 - `benchmarks/compare.py`
 - `benchmarks/fetch_public.py`
 - `benchmarks/run.py`
 - `benchmarks/score.py`
 - `benchmarks/test_score.py`
+- `docs/BENCHMARKS.md`
+- `docs/KNOWN_ISSUES.md`
 - `docs/PRIVACY.md`
 - `docs/STT-CAPS-SPRINT.md`
 - `docs/TESTING.md`
+- `docs/benchmark-evidence/2026-11-22/BUILD-INFO.json`
+- `docs/benchmark-evidence/2026-11-22/comparison.json`
+- `docs/benchmark-evidence/2026-11-22/corpus.json`
+- `docs/benchmark-evidence/2026-11-22/medium-linux-bounded.json`
+- `docs/benchmark-evidence/2026-11-22/model-0.json`
+- `docs/benchmark-evidence/2026-11-22/model-1.json`
+- `docs/benchmark-evidence/2026-11-22/no-timestamps-linux-small.json`
+- `docs/benchmark-evidence/2026-11-22/no-timestamps-probe-metadata.json`
 - `models/manifest.json`
 - `native/worker.cpp`
 - `scripts/package.ps1`
@@ -101,8 +113,31 @@ Small improves these error rates but remains poor on the selected Czech clips an
 - `tests/JLVoice.CoreChecks/Program.cs`
 - `tests/JLVoice.DesktopChecks/JLVoice.DesktopChecks.csproj`
 - `tests/JLVoice.DesktopChecks/Program.cs`
-- `docs/benchmark-evidence/2026-11-22/`: raw paired reports, corpus provenance and build identity.
 
 ## Additional decoding probe
 
 A temporary Small build with `params.no_timestamps=true` was run on the same six audio hashes on Linux (two-thread CPU quota, 8 GiB container memory limit; not representative physical hardware). Czech WER remained 80% and English WER was 35.5% in that probe. Raw results and the exact one-line experimental configuration/source hash are retained with the evidence. This supplied no basis for changing the production decoding defaults; the experimental flag is not shipped. Windows and Linux latency figures are not combined.
+
+## Final build verification
+
+[Windows run 45052015660](https://github.com/beamj786-rgb/jl-voice/actions/runs/45052015660), source `f307864c4a0f11a46d19c9560ac0906e464ee1ab`, passed the final package/publish, 34 deterministic core checks, 11 scoring/native boundary tests, actual native Unicode/focus/clipboard/cancellation checks, four observed correctly tagged synthetic Caps down/up events, model-selector/retention/layout checks, public English NAudio-to-worker inference and idle monitoring. Native ASR/config/model code is unchanged from the measured paired Windows source `3ccc8aa`; the subsequent hardening fixes capture the original target at physical key-down and preserve normal taps without a text target. The quality probe was not redundantly rerun for those keyboard-target-only changes.
+
+[Portable Base + Small test ZIP](https://github.com/beamj786-rgb/jl-voice/actions/runs/45052015660/artifacts/14766302116) is a development artifact with seven-day retention, not a GitHub Release. No production build was replaced. Both models are bundled; no end-user runtime/model install or Python is needed. The build is still unsigned and not Smart App Control qualified.
+
+## Medium: bounded Linux experiment, not a default
+
+The full Medium sweep was stopped for CPU/time budget. A separate completed run used **one existing Czech clip and one existing English clip**, explicit languages, two CPU threads, in the Linux container (8 GiB memory limit and two-core quota; this is not a physical low-end Windows PC). The exact same clip hashes are in the Base/Small corpus, but these two-row figures must not be compared to the three-clip language aggregates above as if sample counts matched. [Raw result and environment](benchmark-evidence/2026-11-22/medium-linux-bounded.json).
+
+| Clip | WER | CER | Inference | OS worker peak RAM | Worker CPU time through inference |
+|---|---:|---:|---:|---:|---:|
+| cs-1652 | 100.0% | 14.5% | 39.51 s | 1112.3 MiB | 76.11 CPU-s |
+| en-1554 | 37.5% | 6.1% | 32.73 s | 1112.1 MiB | 63.01 CPU-s |
+
+The Czech output is closer at the character level but still contains inflection/spelling errors and a missing word; its high WER is not hidden. English WiFi/door bell versus Wi-Fi/doorbell tokenization contributes to that clip's WER. These samples and observed inference times do not justify requiring Medium for a lightweight utility. Medium remains benchmark-only and absent from the distributed app model selector.
+
+## Recommended next acceptance steps
+
+1. On the Windows PC that permits startup, verify tap/hold with Caps initially off/on, repeat, Shift, focus changes, lock/suspend and recovery in modern Notepad and a browser. Record failures rather than marking physical tests passed from state-machine checks.
+2. Use the in-memory replay checkbox to compare Base/Small, explicit Czech/English and Auto on the owner's exact captured non-sensitive clip. Compare playback, Last transcript and destination text separately.
+3. Expand the paired corpus to multiple speakers, ordinary longer conversation, mixed technical vocabulary and silence/noise. Use larger models or revised decoding only when those comparisons justify their cost; measured quality is currently insufficient.
+4. Perform actual clean offline Windows and representative 8 GB physical hardware/resource/desktop-responsiveness acceptance. Resolve trusted distribution for PCs with enforced app-control blocking before claiming broad installation support.
