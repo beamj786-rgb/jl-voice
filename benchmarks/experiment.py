@@ -21,6 +21,8 @@ CONFIGS = [  # (name, model, run.py flags)
     ('small+norm+prompt+short', 'ggml-small-q5_1.bin', ['--normalize', '--czech-prompt', '--short-context']),
     ('turbo+short', 'ggml-large-v3-turbo-q5_0.bin', ['--short-context']),
     ('turbo+norm+prompt+short', 'ggml-large-v3-turbo-q5_0.bin', ['--normalize', '--czech-prompt', '--short-context']),
+    ('turbo', 'ggml-large-v3-turbo-q5_0.bin', []),
+    ('turbo+norm+short', 'ggml-large-v3-turbo-q5_0.bin', ['--normalize', '--short-context']),
 ]
 
 def main():
@@ -70,5 +72,9 @@ def main():
         fmt = lambda g, k: f"{groups[g][k]:.3f}" if g in groups and groups[g].get(k) is not None else 'n/a'
         print(f"{row['config']:28} cs WER {fmt('cs/cs','wer')} CER {fmt('cs/cs','cer')} | en WER {fmt('en/en','wer')} CER {fmt('en/en','cer')} "
               f"| ctrl halluc {groups.get('control/cs', {}).get('hallucinated_words', 'n/a')} | med inf {row.get('median_inference_ms', 'n/a')} ms | {row['status']}")
+    # Content-free metrics plus public-corpus/control texts, printed because artifact storage may be unreachable.
+    for row in summary:
+        print('EXPERIMENT_DETAIL ' + json.dumps({k: row.get(k) for k in ('config', 'status', 'median_inference_ms', 'median_rtf', 'max_worker_wall_s',
+              'os_peak_worker_rss_bytes', 'detected_language_mismatches', 'texts')}, ensure_ascii=False))
 
 if __name__ == '__main__': main()
