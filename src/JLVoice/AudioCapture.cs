@@ -12,14 +12,19 @@ internal sealed class AudioCapture : IDisposable
     private bool disposed;
     private float level;
     public float Level => Volatile.Read(ref level);
+    private long firstBufferTick;
+    // Monotonic tick of the first delivered buffer (its audio began ~BufferMilliseconds earlier); 0 = none yet.
+    public long FirstBufferTick => Interlocked.Read(ref firstBufferTick);
+    public const int BufferMilliseconds = 50;
     public event Action<Exception>? Faulted;
     public const int MaxSeconds = 90;
     private const int MaxBytes = 16000 * 2 * MaxSeconds;
     public AudioCapture(int device)
     {
-        input = new WaveInEvent { DeviceNumber = device, WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = 50 };
+        input = new WaveInEvent { DeviceNumber = device, WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = BufferMilliseconds };
         input.DataAvailable += (_, e) =>
         {
+            if (e.BytesRecorded > 0) Interlocked.CompareExchange(ref firstBufferTick, Environment.TickCount64, 0);
             Volatile.Write(ref level, PcmLevel.Rms(e.Buffer.AsSpan(0, e.BytesRecorded)));
             lock (gate) pcm.Write(e.Buffer, 0, Math.Min(e.BytesRecorded, MaxBytes - (int)pcm.Length));
         };

@@ -284,6 +284,7 @@ public partial class MainWindow : Window
         }
         return true;
     }
+    internal const int PostRollMs = 250;
     private void PostToUi(Action action) { if (!closing && !Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(action); }
     private void EnterActive()
     {
@@ -304,6 +305,7 @@ public partial class MainWindow : Window
         {
             try
             {
+                if (original is null) holdPressedAt = null; // Only the Caps path supplies a measured press time.
                 RequireCloudReady();
                 target = original ?? WindowsInput.CaptureTarget();
                 if (target.Window == handle) throw new InvalidOperationException(T("Zaměřte cílové textové pole.", "Focus the destination text field."));
@@ -312,16 +314,22 @@ public partial class MainWindow : Window
                 audio.Start(); ResultText.Clear(); EnterActive(); recordingTime.Restart(); recordingTimer.Start();
                 bubble.PlaceForWindow(target.Window); bubble.SetRecording(locale); RefreshBubble(); SetStatus(T("Nahrávám…", "Recording…")); Diagnostics.Mark("recording_started");
             }
-            catch (Exception error) { capture?.Dispose(); capture = null; ExitActive(); Notify(error); }
+            catch (Exception error) { capture?.Dispose(); capture = null; holdPressedAt = null; ExitActive(); Notify(error); }
             return;
         }
         holdKey.Disarm(); busy = true; recordingTimer.Stop(); recordingTime.Stop();
         bubble.SetProcessing(locale); RefreshBubble(); SetStatus(T("Přepisuji…", "Transcribing…")); Diagnostics.Mark("recording_stop_requested");
         var audioSession = capture; capture = null; byte[]? wav = null;
+        var pressedAt = holdPressedAt; holdPressedAt = null;
         using var cts = new CancellationTokenSource(); cancellation = cts; var latency = Stopwatch.StartNew();
         try
         {
+            // Hold release usually coincides with the last syllable; keep a short tail so it is not cut.
+            if (settings.PushToTalk) await Task.Delay(PostRollMs, cts.Token);
             wav = await audioSession.StopAsync(); audioSession.Dispose();
+            double? startGapMs = pressedAt is { } down && audioSession.FirstBufferTick > 0
+                ? Math.Max(0, audioSession.FirstBufferTick - AudioCapture.BufferMilliseconds - down) : null;
+            Diagnostics.Mark("capture_window", new { start_after_key_ms = startGapMs, post_roll_ms = settings.PushToTalk ? PostRollMs : 0 });
             if (RetainAudio.IsChecked == true) { ForgetReplay(); replayWav = (byte[])wav.Clone(); ReplayButton.IsEnabled = true; }
             if (ReviewAudio.IsChecked == true)
             {
@@ -329,7 +337,7 @@ public partial class MainWindow : Window
                 await AudioPlayback.PlayAsync(wav, cts.Token);
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
-            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav);
+            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav, startGapMs);
             await WindowsInput.InsertAsync(result.Text, target, cts.Token, handle); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }

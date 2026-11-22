@@ -9,6 +9,7 @@ public partial class MainWindow
     private readonly DispatcherTimer pendingHold = new();
     private WindowsInput.Target capsTarget;
     private int pendingVersion;
+    private long? holdPressedAt; // Physical Caps press time for the recording being started, if any.
     private bool suspended;
 
     private void CapsKey(bool down)
@@ -58,6 +59,7 @@ public partial class MainWindow
         {
             if (capsTarget.Window == IntPtr.Zero || capsTarget.Window == handle || WindowsInput.CaptureTarget() != capsTarget || busy || capture is not null || suspended || closing)
             { capsHold.Cancel(); return; }
+            holdPressedAt = capsHold.DownAt;
             activeTask = ToggleAsync(capsTarget);
         }
         catch (Exception error) { capsHold.Cancel(); Notify(error); }
