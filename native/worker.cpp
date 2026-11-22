@@ -1,6 +1,7 @@
 #include "whisper.h"
 #include "ggml-backend.h"
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -12,6 +13,10 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <sys/resource.h>
 #endif
 
 namespace {
@@ -85,6 +90,7 @@ int run(int argc, char ** argv) {
     if (!cpu_only || model.empty() || (language != "cs" && language != "en" && language != "auto"))
         throw std::runtime_error("Required: --cpu-only --model PATH [--language cs|en|auto] [--threads 1|2]");
     auto audio = read_audio();
+    const auto load_start = std::chrono::steady_clock::now();
     ggml_backend_load_all();
     auto context_params = whisper_context_default_params();
     context_params.use_gpu = false;
@@ -92,17 +98,49 @@ int run(int argc, char ** argv) {
         whisper_init_from_file_with_params(model.c_str(), context_params), &whisper_free);
     if (!context) throw std::runtime_error("Cannot load multilingual model");
     if (!whisper_is_multilingual(context.get())) throw std::runtime_error("English-only models are not supported");
+    const auto decode_start = std::chrono::steady_clock::now();
     auto params = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH);
     params.beam_search.beam_size = 5;
     params.n_threads = threads;
     params.language = language.c_str();
     params.translate = false;
+    // Explicit pinned defaults, not an unmeasured decoding-profile change.
+    params.no_context = true;
+    params.vad = false;
+    params.suppress_blank = true;
+    params.temperature = 0.0f;
+    params.temperature_inc = 0.2f;
     params.print_realtime = false;
     params.print_progress = false;
     params.print_timestamps = false;
     params.print_special = false;
     if (whisper_full(context.get(), params, audio.data(), int(audio.size())) != 0)
         throw std::runtime_error("Speech recognition failed");
+    const auto decode_end = std::chrono::steady_clock::now();
+    uint64_t peak_rss = 0;
+    double cpu_ms = -1;
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS memory{};
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &memory, sizeof memory)) peak_rss = memory.PeakWorkingSetSize;
+    FILETIME created, exited, kernel, user;
+    if (GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user)) {
+        ULARGE_INTEGER k{}, u{}; k.LowPart = kernel.dwLowDateTime; k.HighPart = kernel.dwHighDateTime;
+        u.LowPart = user.dwLowDateTime; u.HighPart = user.dwHighDateTime;
+        cpu_ms = (k.QuadPart + u.QuadPart) / 10000.0;
+    }
+#else
+    rusage usage{};
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        peak_rss = uint64_t(usage.ru_maxrss) * 1024;
+        cpu_ms = (usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000.0 + (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;
+    }
+#endif
+    std::cerr << "JLVOICE_METRICS {\"load_ms\":" << std::chrono::duration<double, std::milli>(decode_start - load_start).count()
+              << ",\"inference_ms\":" << std::chrono::duration<double, std::milli>(decode_end - decode_start).count()
+              << ",\"audio_seconds\":" << audio.size() / 16000.0
+              << ",\"detected_language\":\"" << whisper_lang_str(whisper_full_lang_id(context.get())) << "\",\"peak_rss_bytes\":"
+              << (peak_rss ? std::to_string(peak_rss) : "null") << ",\"process_cpu_ms\":"
+              << (cpu_ms >= 0 ? std::to_string(cpu_ms) : "null") << "}\n";
     for (int i = 0; i < whisper_full_n_segments(context.get()); ++i)
         std::cout << whisper_full_get_segment_text(context.get(), i);
     std::cout << '\n';

@@ -59,7 +59,13 @@ def run_sample(executable, model, audio, language, threads):
     elapsed = time.perf_counter() - started
     if p.returncode:
         raise RuntimeError(f'ASR exited {p.returncode}; no benchmark result accepted')
+    metrics = [json.loads(line[16:]) for line in error.decode('utf-8').splitlines() if line.startswith('JLVOICE_METRICS ')]
+    if len(metrics) != 1: raise RuntimeError('Missing or ambiguous worker inference metrics')
     return dict(text=output.decode('utf-8').strip(), audio_seconds=duration,
+                inference_ms=metrics[0]['inference_ms'], model_load_ms=metrics[0]['load_ms'],
+                detected_language=metrics[0]['detected_language'],
+                os_peak_worker_rss_bytes=metrics[0].get('peak_rss_bytes'),
+                worker_cpu_ms=metrics[0].get('process_cpu_ms'),
                 transcription_wall_seconds=elapsed, rtf=elapsed / duration,
                 sampled_peak_family_rss_bytes=peak_rss,
                 sampled_cpu_seconds=cpu_seconds,
@@ -91,22 +97,27 @@ def main():
                 row = run_sample(executable, model, audio, mode, args.threads)
                 row.update(id=sample['id'], group=sample['language'], mode=mode, repeat=repeat,
                            audio_sha256=sha256(audio), score=align(sample['reference'], row['text']))
+                if sample.get('audio_sha256') and sample['audio_sha256'] != row['audio_sha256']:
+                    raise RuntimeError('Corpus audio hash mismatch')
                 rows.append(row)
     groups = {}
     for row in rows:
         key = f"{row['group']}/{row['mode']}"
-        summary = groups.setdefault(key, dict(words=0, errors=0))
+        summary = groups.setdefault(key, dict(words=0, errors=0, characters=0, character_errors=0))
         summary['words'] += row['score']['words']
         summary['errors'] += sum(row['score'][k] for k in ('substitutions', 'deletions', 'insertions'))
+        summary['characters'] += row['score']['characters']
+        summary['character_errors'] += row['score']['character_errors']
     for group in groups.values():
         group['wer'] = group['errors'] / group['words'] if group['words'] else None
+        group['cer'] = group['character_errors'] / group['characters'] if group['characters'] else None
     report = dict(schema=1, platform=platform.platform(), cpu=platform.processor(),
                   logical_cpus=psutil.cpu_count(), physical_ram_bytes=psutil.virtual_memory().total,
                   cpu_only=True, threads=args.threads, model_sha256=sha256(model),
                   executable_sha256=sha256(executable), groups=groups, samples=rows,
                   minimum_hardware_accepted=False,
                   limitations=['ASR worker only, not full app memory or insertion latency.',
-                               'RSS and CPU sampled every 20ms; short peaks or exit CPU may be missed.',
+                               'Family RSS/CPU sampled every 20ms; short peaks/exit CPU may be missed. OS worker peak/CPU counters are captured by the worker just after inference when available.',
                                'Each run reloads the model. Repeats warm filesystem caches, not a resident worker.',
                                'Cold boot, idle app resources, desktop activity and physical hardware qualification require separate runs.',
                                'WER ignores punctuation; punctuation and mixed-language usability need human review.'])

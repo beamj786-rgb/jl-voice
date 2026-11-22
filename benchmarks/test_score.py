@@ -14,6 +14,10 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(align('', 'phantom')['hallucinated_words'], 1)
     def test_case_punctuation(self):
         self.assertEqual(align('Hello, world!', 'hello world')['wer'], 0)
+    def test_character_errors(self):
+        self.assertEqual(align('kůň', 'kun')['cer'], 2/3)
+        self.assertEqual(align('Hello, world!', 'hello world')['cer'], 0)
+        self.assertIsNone(align('', 'phantom')['cer'])
 
 if __name__ == '__main__':
     unittest.main()

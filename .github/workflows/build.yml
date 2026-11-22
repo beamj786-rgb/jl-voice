@@ -9,6 +9,11 @@ on:
         required: false
         type: boolean
         default: false
+      quality_benchmark:
+        description: Run paired public CZ/EN Base and Small CPU probe
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -29,7 +34,23 @@ jobs:
         run: dotnet run --project tests/JLVoice.CoreChecks -c Release
       - name: Build self-contained CPU package (not a release)
         shell: pwsh
-        run: ./scripts/package.ps1
+        run: ./scripts/package.ps1 -IncludeSmall
+      - name: Native Windows insertion and tagged Caps toggle checks
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          dotnet publish tests/JLVoice.DesktopChecks -c Release -r win-x64 --self-contained true -o artifacts/desktop-checks
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop checks did not build.' }
+          & ./artifacts/desktop-checks/JLVoice.DesktopChecks.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Native desktop input checks failed.' }
+      - name: Paired public CZ and EN CPU quality probe
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.quality_benchmark }}
+        shell: pwsh
+        run: |
+          python benchmarks/fetch_public.py --output artifacts/public-corpus
+          if ($LASTEXITCODE -ne 0) { throw 'Public corpus fetch failed.' }
+          python benchmarks/compare.py --runtime artifacts/JLVoice/runtime/JLVoiceAsr.exe --model artifacts/JLVoice/models/ggml-base-q5_1.bin --model artifacts/JLVoice/models/ggml-small-q5_1.bin --corpus artifacts/public-corpus/corpus.json --repeats 1 --threads 2 --output artifacts/quality-probe
+          if ($LASTEXITCODE -ne 0) { throw 'Paired CPU probe failed.' }
       - name: Verify portable package integrity helper
         shell: powershell
         run: ./artifacts/JLVoice/Check-Package.ps1
@@ -74,6 +95,8 @@ jobs:
             artifacts/ui-review/
             artifacts/ci-idle.json
             artifacts/signpath-readiness.json
+            artifacts/quality-probe/
+            artifacts/public-corpus/corpus.json
             artifacts/JLVoice/SIGNATURES.json
             artifacts/JLVoice/BUILD-INFO.json
           if-no-files-found: warn

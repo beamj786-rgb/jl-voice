@@ -9,6 +9,7 @@ public sealed record Settings
     public int Threads { get; init; } = Math.Clamp(Environment.ProcessorCount / 2, 1, 2);
     public string Model { get; init; } = "ggml-base-q5_1.bin";
     public bool PushToTalk { get; init; } = true;
+    public int HoldThresholdMs { get; init; } = 250;
     public int Key { get; init; } = DictationKeys.CapsLock;
     public string Theme { get; init; } = "dark";
     public string UiLanguage { get; init; } = "cs";
@@ -25,7 +26,7 @@ public sealed record Settings
     internal void Validate()
     {
         var s = this;
-        if (s.Language is not ("cs" or "en" or "auto") || s.Threads is < 1 or > 2 || !DictationKeys.IsSupported(s.Key) || (s.Key == DictationKeys.CapsLock && !s.PushToTalk) ||
+        if (s.HoldThresholdMs is < 100 or > 1000 || s.Language is not ("cs" or "en" or "auto") || s.Threads is < 1 or > 2 || !DictationKeys.IsSupported(s.Key) || (s.Key == DictationKeys.CapsLock && !s.PushToTalk) ||
             s.Model is not ("ggml-base-q5_1.bin" or "ggml-base-q8_0.bin" or "ggml-small-q5_1.bin") ||
             s.Theme is not ("dark" or "light" or "system") || s.UiLanguage is not ("cs" or "en"))
             throw new InvalidDataException("Unsupported settings. Review settings.json in the portable folder.");

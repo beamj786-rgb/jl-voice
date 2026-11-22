@@ -24,5 +24,14 @@ def align(reference, hypothesis):
                 current.append(min((substitution, deletion, insertion), key=lambda x: x[0]))
         previous = current
     errors, s, d, ins = previous[-1]
+    expected_chars, actual_chars = ' '.join(ref), ' '.join(hyp)
+    row = list(range(len(actual_chars) + 1))
+    for i, expected in enumerate(expected_chars, 1):
+        next_row = [i]
+        for j, actual in enumerate(actual_chars, 1):
+            next_row.append(min(row[j] + 1, next_row[j-1] + 1, row[j-1] + (expected != actual)))
+        row = next_row
     return dict(words=len(ref), substitutions=s, deletions=d, insertions=ins,
+                characters=len(expected_chars), character_errors=row[-1],
+                cer=row[-1] / len(expected_chars) if expected_chars else None,
                 wer=errors / len(ref) if ref else None, hallucinated_words=len(hyp) if not ref else 0)

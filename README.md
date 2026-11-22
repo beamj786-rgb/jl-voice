@@ -10,7 +10,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 
 - WPF/XAML tray application without a browser engine; reactive, nonactivating bottom-centre dictation bubble.
 - Static idle capsule, hover shortcut/settings, real PCM audio meter, processing feedback and cancellation with Escape or the bubble. Closing the window keeps it in the tray; Exit shuts it down.
-- Hold Caps Lock to record and release to transcribe (fresh-install default). The key is consumed while configured, preserving its previous letter-case state. F9–F12 remain selectable for hold or Ctrl+Alt+key toggle mode; existing saved shortcuts are preserved.
+- Tap Caps Lock to toggle capitalization normally; hold it for 250 ms to record and release to transcribe (fresh-install default). The threshold is configurable from 100 to 1000 ms. Long holds consume the original Caps events and preserve capitalization; taps send a tagged synthetic toggle. F9–F12 remain selectable for hold or Ctrl+Alt+key toggle mode; existing saved shortcuts are preserved.
 - Microphone selection; mono 16 kHz PCM capture only during explicit recording, bounded to 90 seconds per recording in this preview.
 - Czech, English, and experimental Automatic language selection.
 - Isolated, below-normal-priority native whisper.cpp CPU worker with at most two inference threads, GPU explicitly disabled, five-minute timeout and cancellation.
@@ -43,7 +43,7 @@ pwsh scripts/package.ps1
 
 `artifacts/JLVoice` is a self-contained portable folder, including the CPU runtime and multilingual model. Do not distribute it until licenses, clean-machine/offline operation and the [acceptance checklist](docs/REQUIREMENTS.md) pass. The development package downloads dependencies only at build time. The application contains no model downloader, cloud ASR, account system or telemetry.
 
-Launch `JLVoice.exe`, focus a text field, hold Caps Lock to speak and release it to transcribe. Existing saved shortcuts keep their previous binding. The bottom-centre bubble can also start/stop recording; hovering reveals settings. Double-click the tray icon to open the main window. Escape cancels active dictation. Closing/minimizing keeps the app in the tray; use Exit in the tray menu to quit. Keep the portable folder writable for settings. Elevated applications and some input controls may reject synthesized input; inspect the retained result rather than blindly retrying partial insertion.
+Launch `JLVoice.exe`, focus a text field, hold Caps Lock until recording starts (250 ms by default), speak and release it to transcribe. Existing saved shortcuts keep their previous binding. The bottom-centre bubble can also start/stop recording; hovering reveals settings. Double-click the tray icon to open the main window. Escape cancels active dictation. Closing/minimizing keeps the app in the tray; use Exit in the tray menu to quit. Keep the portable folder writable for settings. Elevated applications and some input controls may reject synthesized input; inspect the retained result rather than blindly retrying partial insertion.
 
 The three candidate models can be packaged with `-Model ggml-base-q5_1.bin`, `ggml-base-q8_0.bin`, or `ggml-small-q5_1.bin`. Packaging a larger candidate is an explicit developer choice, not an automatic RAM-based upgrade.
 
@@ -53,4 +53,6 @@ See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md), [res
 
 Original JL Voice code is [MIT licensed](LICENSE), with [explicit scope and exclusions](LICENSE-SCOPE.md). Dependency/font terms and separately reserved brand assets remain intact.
 
-The [Code signing policy](docs/CODE-SIGNING-POLICY.md) and [privacy/removal policy](docs/PRIVACY.md) are prepared for a possible SignPath Foundation application. No acceptance or signing is claimed. End users would still extract a signed portable ZIP; the signing service is publisher/build infrastructure. See the [unsent application draft and blockers](docs/SIGNPATH-APPLICATION.md).
+The [Code signing policy](docs/CODE-SIGNING-POLICY.md) and [privacy/removal policy](docs/PRIVACY.md) are prepared for a possible SignPath Foundation application. No acceptance or signing is claimed. End users would still extract a signed portable ZIP; the signing service is publisher/build infrastructure. See the [eligibility enquiry status and blockers](docs/SIGNPATH-APPLICATION.md).
+
+The current test-package build bundles Base Q5_1 and Small Q5_1; select either under Settings → Advanced options and save. Neither is a quality-qualified default. Optional session-only audio playback/retention and repeat transcription support diagnosis without audio files or cloud services. See [the Caps/STT audit and test report](docs/STT-CAPS-SPRINT.md).

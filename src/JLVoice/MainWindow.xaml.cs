@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         ShortcutKey.SelectedValuePath = nameof(DictationKey.Code);
         ShortcutKey.ItemsSource = DictationKeys.Options; ShortcutKey.SelectedValue = settings.Key;
         PushToTalk.IsChecked = settings.PushToTalk; IdleBubble.IsChecked = settings.ShowIdleBubble;
+        HoldThreshold.Text = settings.HoldThresholdMs.ToString(); HoldThreshold.TextChanged += (_, _) => MarkPending();
         Theme.ItemsSource = new[] { "", "", "" }; Theme.SelectedIndex = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };
         UiLanguage.ItemsSource = new[] { "Čeština", "English" }; UiLanguage.SelectedIndex = locale == "en" ? 1 : 0;
         foreach (var (file, name) in new[] { ("ggml-base-q5_1.bin", "Base · Q5"), ("ggml-base-q8_0.bin", "Base · Q8"), ("ggml-small-q5_1.bin", "Small · Q5") })
@@ -63,6 +64,11 @@ public partial class MainWindow : Window
         bubble.IdleHideRequested += () => { idleBubbleOverride = false; RefreshBubble(); }; bubble.Settled += RefreshBubble;
         recordingTimer.Tick += (_, _) =>
         {
+            if (capture is not null)
+            {
+                try { if (WindowsInput.CaptureTarget() != target) { RequestCancel(); return; } }
+                catch { RequestCancel(); return; }
+            }
             if (capture is { } audio) bubble.UpdateAudio(audio.Level, recordingTime.Elapsed);
             if (recordingTime.Elapsed.TotalSeconds >= AudioCapture.MaxSeconds) QueueToggle();
         };
@@ -80,6 +86,9 @@ public partial class MainWindow : Window
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) { Hide(); WindowState = WindowState.Normal; } };
         Closing += OnClosing;
         SystemEvents.UserPreferenceChanged += OnSystemAppearance;
+        pendingHold.Tick += PendingHoldTick;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
         languageSelection = DictationLanguage.SelectedIndex; themeSelection = Theme.SelectedIndex;
         Localize(); binding = false; ApplyTheme(); ReadyStatus(); bubble.SetIdle(Shortcut, locale); PendingText.Text = "";
     }
@@ -129,7 +138,7 @@ public partial class MainWindow : Window
         if (caps) PushToTalk.IsChecked = true;
         PushToTalk.IsEnabled = !caps;
         ShortcutHelp.Text = caps
-            ? T("Držte Caps Lock a mluvte. Uvolněním spustíte přepis. Velká písmena se nepřepínají.", "Hold Caps Lock to speak. Release to transcribe. Letter case is not toggled.")
+            ? T($"Krátký stisk přepne Caps Lock. Držení od {settings.HoldThresholdMs} ms nahrává; uvolnění spustí přepis.", $"Tap toggles Caps Lock. Hold for {settings.HoldThresholdMs} ms to record; release to transcribe.")
             : T("Přepínání: Ctrl + Alt + klávesa. Při držení stačí samotná klávesa.", "Toggle: Ctrl + Alt + key. Hold mode uses the key alone.");
     }
     private void MarkPending() { if (!binding) PendingText.Text = T("Neuložené změny", "Unsaved changes"); }
@@ -151,6 +160,10 @@ public partial class MainWindow : Window
         ModelHelp.Text = T("Automatický jazyk a kvalita modelů se zatím ověřují.", "Automatic detection and model quality are still being evaluated.");
         ReviewAudio.Content = T("Před přepisem přehrát nahrávku (test zvuku)", "Play recording before transcription (audio check)");
         ReviewAudio.ToolTip = T("Dočasně pro toto spuštění. Přehraje přesně zvuk posílaný modelu. Nic se neukládá; po přepisu se zvuk uvolní. Zrušení: Escape.", "For this session only. Plays the exact audio sent to the model. Nothing is saved; audio is released after transcription. Cancel with Escape.");
+        HoldThresholdLabel.Text = T("Délka držení Caps Lock (ms, 100–1000)", "Caps Lock hold threshold (ms, 100–1000)");
+        RetainAudio.Content = new TextBlock { Text = T("Vývojový test: ponechat poslední zvuk v paměti", "Developer check: retain last audio in memory"), TextWrapping = TextWrapping.Wrap, MaxWidth = 370 };
+        RetainAudio.ToolTip = T("Pouze po výslovném zapnutí a jen do odškrtnutí nebo ukončení aplikace. Opakovaný přepis nic nevkládá.", "Explicit opt-in only, until unchecked or app exit. Replay transcription never inserts text.");
+        ReplayButton.Content = T("Přepsat stejný zvuk znovu", "Transcribe the same audio again");
         SaveButton.Content = T("Uložit", "Save changes"); BackToWorkButton.Content = T("Zpět k práci", "Back to work");
         EmptyResultText.Text = T("Poslední přepis se objeví tady.", "Your last transcript will appear here."); ResultHeading.Text = T("Poslední přepis", "Last transcript");
         CopyButton.Content = T("Kopírovat", "Copy"); ClearButton.Content = T("Vymazat", "Clear");
@@ -179,7 +192,7 @@ public partial class MainWindow : Window
     private void UpdateSummaries()
     {
         ShortcutText.Text = Shortcut;
-        LanguageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") });
+        LanguageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " + settings.Model;
     }
     private void RefreshMicrophones()
     {
@@ -218,9 +231,9 @@ public partial class MainWindow : Window
         try
         {
             var next = settings with { Language = DictationLanguage.SelectedIndex switch { 1 => "cs", 2 => "en", _ => "auto" }, Microphone = Microphone.SelectedIndex,
-                PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, ShowIdleBubble = IdleBubble.IsChecked == true,
+                PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, HoldThresholdMs = int.Parse(HoldThreshold.Text), ShowIdleBubble = IdleBubble.IsChecked == true,
                 Model = modelFiles[Model.SelectedIndex], Threads = Threads.SelectedIndex + 1, Theme = ThemeName, UiLanguage = locale };
-            if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
+            next.Validate(); if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
             if (reviewMode || ConfigureShortcut()) { ReadyStatus(); ResetBubble(); }
             UpdateSummaries(); PendingText.Text = T("Uloženo.", "Saved.");
         }
@@ -228,6 +241,7 @@ public partial class MainWindow : Window
     }
     private bool ConfigureShortcut()
     {
+        pendingHold.Stop(); capsHold.Reset();
         WindowsInput.UnregisterHotKey(handle, WindowsInput.HotkeyId);
         if (hook != IntPtr.Zero) { WindowsInput.UnhookWindowsHookEx(hook); hook = IntPtr.Zero; } holdKey.Reset();
         if (!settings.PushToTalk)
@@ -238,23 +252,24 @@ public partial class MainWindow : Window
         {
             hookCallback = (code, message, data) =>
             {
-                if (code >= 0 && Marshal.ReadInt32(data) == settings.Key && (Marshal.ReadInt32(data, 8) & 0x10) == 0)
+                if (code >= 0 && Marshal.ReadInt32(data) == settings.Key && !WindowsInput.IsOwnInput(data) && !WindowsInput.IsInjected(data))
                 {
                     var down = message.ToInt64() is 0x100 or 0x104; var up = message.ToInt64() is 0x101 or 0x105;
                     if (down || up)
                     {
+                        if (settings.Key == DictationKeys.CapsLock) { CapsKey(down); return new IntPtr(1); }
                         var action = holdKey.Change(down, !busy && capture is null && !closing);
                         // Cancel/rebind invalidates already queued input intents as well.
                         var version = holdKey.Version;
                         if (action == HoldAction.Start) PostToUi(() => { if (version == holdKey.Version && capture is null) QueueToggle(); });
                         if (action == HoldAction.Stop) PostToUi(() => { if (version == holdKey.Version && capture is not null) QueueToggle(); });
                     }
-                    return new IntPtr(1);
+                    if (down || up) return new IntPtr(1);
                 }
                 return WindowsInput.CallNextHookEx(hook, code, message, data);
             };
             hook = WindowsInput.SetWindowsHookEx(13, hookCallback, WindowsInput.GetModuleHandle(null), 0);
-            if (hook == IntPtr.Zero) { Notify(T("Klávesu se nepodařilo zaregistrovat.", "Could not register the key.")); return false; }
+            if (hook == IntPtr.Zero) { Notify(T("Klávesu se nepodařilo zaregistrovat. Použijte bublinu nebo Ctrl + Alt + F9 v nastavení.", "Could not register the key. Use the bubble or select Ctrl + Alt + F9 in settings.")); return false; }
         }
         return true;
     }
@@ -265,19 +280,20 @@ public partial class MainWindow : Window
     }
     private void ExitActive()
     {
+        capsHold.Complete();
         recordingTimer.Stop(); Preferences.IsEnabled = true;
         if (cancelRegistered) WindowsInput.UnregisterHotKey(handle, CancelHotkeyId); cancelRegistered = false; RefreshBubble();
     }
     private void QueueToggle() { if (!reviewMode && !closing && !busy) activeTask = ToggleAsync(); }
-    private void RequestCancel() { holdKey.Disarm(); if (cancelTask is null || cancelTask.IsCompleted) cancelTask = CancelAsync(); }
-    private async Task ToggleAsync()
+    private void RequestCancel() { pendingHold.Stop(); capsHold.Cancel(); holdKey.Disarm(); if (cancelTask is null || cancelTask.IsCompleted) cancelTask = CancelAsync(); }
+    private async Task ToggleAsync(WindowsInput.Target? original = null)
     {
-        if (closing || busy) return;
+        if (closing || busy || suspended) return;
         if (capture is null)
         {
             try
             {
-                target = WindowsInput.CaptureTarget();
+                target = original ?? WindowsInput.CaptureTarget();
                 if (target.Window == handle) throw new InvalidOperationException(T("Zaměřte cílové textové pole.", "Focus the destination text field."));
                 var audio = new AudioCapture(settings.Microphone); capture = audio;
                 audio.Faulted += error => PostToUi(() => { if (capture == audio) activeTask = FailCaptureAsync(audio, error); });
@@ -294,14 +310,15 @@ public partial class MainWindow : Window
         try
         {
             wav = await audioSession.StopAsync(); audioSession.Dispose();
+            if (RetainAudio.IsChecked == true) { ForgetReplay(); replayWav = (byte[])wav.Clone(); ReplayButton.IsEnabled = true; }
             if (ReviewAudio.IsChecked == true)
             {
                 SetStatus(T("Přehrávám zachycený zvuk…", "Playing captured audio…"));
                 await AudioPlayback.PlayAsync(wav, cts.Token);
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
-            var text = await AsrEngine.TranscribeAsync(wav, settings, cts.Token); ResultText.Text = text;
-            WindowsInput.Insert(text, target); Diagnostics.Mark("text_insertion_sent");
+            var result = await AsrEngine.TranscribeAsync(wav, settings, cts.Token); ShowRecognition(result);
+            await WindowsInput.InsertAsync(result.Text, target, cts.Token); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }
         catch (OperationCanceledException)
@@ -330,10 +347,13 @@ public partial class MainWindow : Window
     internal async Task ExitAsync()
     {
         if (closing) return; closing = true;
+        pendingHold.Stop(); capsHold.Cancel();
         WindowsInput.UnregisterHotKey(handle, WindowsInput.HotkeyId); if (cancelRegistered) WindowsInput.UnregisterHotKey(handle, CancelHotkeyId);
         if (hook != IntPtr.Zero) WindowsInput.UnhookWindowsHookEx(hook);
         await CancelAsync(); if (cancelTask is not null) await cancelTask; if (activeTask is not null) await activeTask;
+        ForgetReplay();
         recordingTimer.Stop(); tray?.Dispose(); bubble.DisposeBubble(); SystemEvents.UserPreferenceChanged -= OnSystemAppearance;
+        SystemEvents.SessionSwitch -= OnSessionSwitch; SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         Closing -= OnClosing; Close(); Application.Current.Shutdown(Environment.ExitCode);
     }
     private void OnClosing(object? sender, CancelEventArgs e) { if (!closing) { e.Cancel = true; Hide(); } }

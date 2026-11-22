@@ -72,6 +72,13 @@
                   </Grid>
                   <TextBlock x:Name="ModelHelp" Style="{StaticResource Muted}" Margin="0,9,0,0"/>
                   <CheckBox x:Name="ReviewAudio" Margin="0,14,0,0"/>
+                  <DockPanel Margin="0,12,0,0">
+                    <TextBox x:Name="HoldThreshold" DockPanel.Dock="Right" Width="70" AutomationProperties.LabeledBy="{Binding ElementName=HoldThresholdLabel}"/>
+                    <TextBlock x:Name="HoldThresholdLabel" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+                  </DockPanel>
+                  <CheckBox x:Name="RetainAudio" Margin="0,14,0,0" Unchecked="ForgetReplayClick"/>
+                  <Button x:Name="ReplayButton" HorizontalAlignment="Left" Margin="0,8,0,0" Click="ReplayClick" IsEnabled="False"/>
+                  <TextBlock x:Name="RecognitionMetrics" Style="{StaticResource Muted}" Margin="0,9,0,0"/>
                 </StackPanel>
               </Expander>
               <DockPanel Margin="0,18,0,0">

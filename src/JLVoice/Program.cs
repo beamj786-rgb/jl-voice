@@ -24,7 +24,7 @@ internal static class Program
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Appearance.Initialize();
         var window = new MainWindow(review); app.MainWindow = window;
-        app.SessionEnding += (_, e) => { e.Cancel = true; _ = window.ExitAsync(); };
+        app.SessionEnding += (_, _) => { _ = window.ExitAsync(); };
         if (review) window.Loaded += async (_, _) =>
         {
             try { await window.ExportUiReviewAsync(args[1]); }

@@ -17,12 +17,12 @@ internal static class Diagnostics
         destination = Path.GetFullPath(args[1]);
         using var file = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
     }
-    public static void Mark(string name)
+    public static void Mark(string name, object? details = null)
     {
         if (destination is null) return;
         try
         {
-            File.AppendAllText(destination, JsonSerializer.Serialize(new { name, elapsed_ms = clock.Elapsed.TotalMilliseconds }) + "\n");
+            File.AppendAllText(destination, JsonSerializer.Serialize(new { name, elapsed_ms = clock.Elapsed.TotalMilliseconds, details }) + "\n");
         }
         catch (IOException) { destination = null; }
         catch (UnauthorizedAccessException) { destination = null; }

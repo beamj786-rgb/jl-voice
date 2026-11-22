@@ -1,4 +1,4 @@
-param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin')
+param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin', [switch]$IncludeSmall)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'Build the native portable package on Windows with PowerShell 7.' }
@@ -23,15 +23,20 @@ dotnet publish "$root/src/JLVoice/JLVoice.csproj" -c Release -r win-x64 --self-c
 Check-Exit
 Get-ChildItem "$build/bin/Release" -File | Where-Object { $_.Extension -in '.dll','.exe' } | Copy-Item -Destination "$output/runtime"
 $manifest = Get-Content "$root/models/manifest.json" -Raw | ConvertFrom-Json
-$entry = $manifest.models | Where-Object file -eq $Model
-$cached = Join-Path $root "models/$Model"
-if (-not (Test-Path $cached)) {
-    Invoke-WebRequest "https://huggingface.co/$($manifest.repository)/resolve/$($manifest.revision)/$Model" -OutFile "$cached.part"
-    if ((Get-FileHash "$cached.part" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256) { throw 'Model download hash mismatch.' }
-    Move-Item "$cached.part" $cached
+$includedModels = @($Model)
+if ($IncludeSmall -and $Model -ne 'ggml-small-q5_1.bin') { $includedModels += 'ggml-small-q5_1.bin' }
+foreach ($includedModel in $includedModels) {
+    $entry = $manifest.models | Where-Object file -eq $includedModel
+    $cached = Join-Path $root "models/$includedModel"
+    if (-not (Test-Path $cached)) {
+        Invoke-WebRequest "https://huggingface.co/$($manifest.repository)/resolve/$($manifest.revision)/$includedModel" -OutFile "$cached.part"
+        if ((Get-FileHash "$cached.part" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256 -or (Get-Item "$cached.part").Length -ne $entry.bytes) { throw 'Model download integrity mismatch.' }
+        Move-Item "$cached.part" $cached
+    }
+    if ((Get-FileHash $cached -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256 -or (Get-Item $cached).Length -ne $entry.bytes) { throw 'Cached model integrity mismatch.' }
+    Copy-Item $cached "$output/models/$includedModel"
 }
-if ((Get-FileHash $cached -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256) { throw 'Cached model hash mismatch.' }
-Copy-Item $cached "$output/models/$Model"
+Copy-Item "$root/models/manifest.json" "$output/models/manifest.json"
 # Tell the app which bundled candidate this package contains.
 @{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
 Copy-Item "$vendor/LICENSE" "$output/licenses/whisper.cpp-MIT.txt"

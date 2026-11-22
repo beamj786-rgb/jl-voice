@@ -42,11 +42,24 @@ public partial class MainWindow
         }
         if (!Appearance.FontsLoaded) issues.Add("Bundled font loading failed.");
         if (ReviewAudio.IsChecked == true) issues.Add("Audio playback check must be opt-in and off on startup.");
+        if (RetainAudio.IsChecked == true || ReplayButton.IsEnabled || replayWav is not null) issues.Add("Audio replay retention must be opt-in and empty at startup.");
+        var replayFixture = AudioCapture.EncodePcm(new byte[16000]);
+        RetainAudio.IsChecked = true; replayWav = replayFixture; ReplayButton.IsEnabled = true;
+        RetainAudio.IsChecked = false;
+        if (replayWav is not null || ReplayButton.IsEnabled || replayFixture.Any(value => value != 0)) issues.Add("Disabling replay retention did not erase the owned buffer.");
         Navigate(true); ShortcutKey.SelectedValue = 0x78; PushToTalk.IsChecked = false;
         InvokeButton(SaveButton); await SettleAsync();
         if (settings.Key != 0x78 || settings.PushToTalk || !PushToTalk.IsEnabled) issues.Add("F9 toggle selection did not round-trip through settings.");
         ShortcutKey.SelectedValue = DictationKeys.CapsLock; InvokeButton(SaveButton); await SettleAsync();
         if (settings.Key != DictationKeys.CapsLock || !settings.PushToTalk || PushToTalk.IsEnabled || ShortcutKey.ActualHeight > 45) issues.Add("Caps Lock selection did not enforce hold mode or its caption overflowed.");
+        var smallIndex = modelFiles.IndexOf("ggml-small-q5_1.bin");
+        if (smallIndex >= 0)
+        {
+            Model.SelectedIndex = smallIndex; InvokeButton(SaveButton); await SettleAsync();
+            if (settings.Model != "ggml-small-q5_1.bin") issues.Add("Small model selection was not saved.");
+            Model.SelectedIndex = modelFiles.IndexOf("ggml-base-q5_1.bin"); InvokeButton(SaveButton); await SettleAsync();
+            if (settings.Model != "ggml-base-q5_1.bin") issues.Add("Base model selection was not restored.");
+        }
         foreach (var light in new[] { false, true })
         {
             Theme.SelectedIndex = light ? 1 : 0; UiLanguage.SelectedIndex = 0; Width = 650; Height = 430; Navigate(false);

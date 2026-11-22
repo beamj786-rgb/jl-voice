@@ -65,3 +65,28 @@ foreach (var code in new[] { 4551, 1260, 577 })
 var denied = new AsrStartException(5, new System.ComponentModel.Win32Exception(5));
 Check(!denied.PolicyBlocked && !ErrorNotice.From(denied, "en").Message.Contains("unsigned"), "access denied is not misdiagnosed as Smart App Control");
 Check(ErrorNotice.From(new IOException(new string('x', 5000)), "cs").Message.Length <= 601, "unexpected technical messages cannot fill the window without bound");
+
+var caps = new CapsHoldState();
+Check(caps.Down(0, true) && caps.Phase == DictationPhase.Pending && caps.Up(249, 250) == CapsAction.Toggle && caps.Phase == DictationPhase.Idle, "Caps tap before threshold toggles without recording");
+Check(caps.Up(249, 250) == CapsAction.None, "duplicate Caps release is idempotent");
+Check(caps.Down(1000, true) && !caps.Down(1100, true) && caps.Due(1249, caps.Version, 250) == CapsAction.None && caps.Due(1250, caps.Version, 250) == CapsAction.Start, "Caps starts once at the monotonic threshold and ignores repeat");
+Check(caps.Due(1300, caps.Version, 250) == CapsAction.None && caps.Up(1400, 250) == CapsAction.Stop && caps.Phase == DictationPhase.Transcribing, "Caps long release ends exactly one recording without a toggle");
+Check(!caps.Down(1500, false) && caps.Due(1800, caps.Version, 250) == CapsAction.None && caps.Up(1900, 250) == CapsAction.None, "hold during transcription cannot record or toggle");
+Check(!caps.Down(2000, false) && caps.Up(2100, 250) == CapsAction.Toggle && caps.Phase == DictationPhase.Transcribing, "short tap during transcription remains a normal Caps toggle");
+caps.Complete(); caps.Down(3000, true); var oldCapsVersion = caps.Version; caps.Cancel();
+Check(caps.Due(4000, oldCapsVersion, 250) == CapsAction.None && !caps.Down(4100, true) && caps.Up(4200, 250) == CapsAction.None, "session cancellation invalidates timers and disarms until physical release");
+caps.Down(5000, true);
+Check(caps.Up(5250, 250) == CapsAction.None && caps.Due(5250, caps.Version, 250) == CapsAction.None, "key-up winning the exact-threshold race cannot start a microphone after release");
+var rapidTaps = true;
+for (var i = 0; i < 100; ++i) rapidTaps &= caps.Down(6000 + i * 100, true) && caps.Up(6001 + i * 100, 250) == CapsAction.Toggle;
+Check(rapidTaps, "100 rapid taps each produce exactly one toggle");
+caps.Down(20000, true); caps.Cancel(); caps.Up(20020, 250);
+Check(caps.Down(21000, true) && caps.Due(21300, caps.Version, 300) == CapsAction.Start, "new hold recovers after failure and respects configured threshold");
+caps.Up(21400, 300); caps.Complete();
+Check(caps.Phase == DictationPhase.Idle, "successful transcription returns the state machine to idle");
+foreach (var threshold in new[] { 99, 1001 })
+{
+    try { (new Settings { HoldThresholdMs = threshold }).Validate(); throw new Exception("Invalid hold threshold accepted"); }
+    catch (InvalidDataException) { }
+}
+Check(new Settings().HoldThresholdMs == 250, "default Caps hold threshold is 250 ms");
