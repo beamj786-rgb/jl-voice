@@ -52,6 +52,9 @@ foreach ($file in $pending) {
 }
 $verified = @(Get-PackageCodeInventory $directoryPath)
 Assert-PackageSignatures $verified
+foreach ($file in $pending) {
+    if (($verified | Where-Object path -eq $file.path).signer_thumbprint -ne $CertificateThumbprint) { throw "Unexpected signing identity: $($file.path)" }
+}
 foreach ($result in $verified | Where-Object signer_thumbprint -eq $CertificateThumbprint) {
     if (-not $result.timestamped) { throw "Publisher signature has no verified timestamp: $($result.path)" }
 }
