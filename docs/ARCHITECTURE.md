@@ -19,3 +19,9 @@ The initial CLI experiment revealed that upstream's `-f -` infers stdout-output 
 Current language handling is whole-recording upstream detection or explicit `cs` / `en`. Segmented detection/code switching is **not implemented or accepted**. Text is preserved rather than passed through an unvalidated formatter. Clipboard is untouched. Foreground-window and native focused-control-handle checks reduce wrong-destination insertion, but cannot distinguish browser DOM fields sharing a native handle or prevent focus races during `SendInput`; Windows acceptance must cover these cases.
 
 Privacy defaults: no transcript history, no audio files, no diagnostic logs. One last result remains in memory for recovery after failed input dispatch. Temporary PCM and WAV buffers are cleared on normal cleanup. No promises are made about OS paging, crash dumps or cryptographic erasure.
+
+## Hold shortcut
+
+Fresh packages use physical Caps Lock as a hold-only binding. The low-level keyboard hook consumes its down/up events to preserve the existing Windows letter-case state. It ignores injected events. F9–F12 retain hold and Ctrl+Alt toggle modes; saved settings keep their existing valid binding. Caps Lock forces hold mode in the UI and settings validation rejects Caps Lock toggle mode.
+
+`HoldKeyState` emits one start/stop pair per accepted hold, ignores auto-repeat, does not arm presses during busy work, and disarms cancellation without allowing a held key to restart. Cancellation/rebinding also invalidates queued UI intents. Capture stopping/device failure disarms the old hold so a later release cannot stop a new recording. Deterministic checks cover this state logic; native key-hook/LED/physical keyboard behavior still needs acceptance on Windows.

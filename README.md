@@ -4,7 +4,7 @@ Offline Czech and English dictation for Windows 11 x64. Designed first for ordin
 
 **Status: development preview source, not a release.** No representative 8 GB Windows hardware, real microphone, destination application, or Czech/English/mixed speech corpus has been qualified. Building successfully does not establish dictation quality or minimum hardware support.
 
-[Windows CI](https://github.com/beamj786-rgb/jl-voice/actions/runs/44958178106) passed at `c45f7c5`: self-contained CPU package build, five PCM checks, ten scoring/native-boundary tests, a public English CPU transcription fixture, tray startup/idle monitoring and WPF UI review. Hosted Windows CI is not representative Windows 11 low-end hardware.
+[Windows CI](https://github.com/beamj786-rgb/jl-voice/actions/runs/45022584983) passed at `2b67c1a`: self-contained CPU package build, 13 PCM/hold-key/settings checks, ten scoring/native-boundary tests, a public English CPU transcription fixture, tray startup/idle monitoring and WPF UI review. Hosted Windows CI is not representative Windows 11 low-end hardware.
 
 ## Implemented
 
