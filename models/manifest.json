@@ -4,9 +4,32 @@
   "defaultCandidate": "ggml-base-q5_1.bin",
   "selectionStatus": "experimental-not-quality-accepted",
   "models": [
-    { "file": "ggml-base-q5_1.bin", "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898", "bytes": 59707625 },
-    { "file": "ggml-base-q8_0.bin", "sha256": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9", "bytes": 81768585 },
-    { "file": "ggml-small-q5_1.bin", "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb", "bytes": 190085487 },
-    { "file": "ggml-medium-q5_0.bin", "sha256": "19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f", "bytes": 539212467, "benchmarkOnly": true }
+    {
+      "file": "ggml-base-q5_1.bin",
+      "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
+      "bytes": 59707625
+    },
+    {
+      "file": "ggml-base-q8_0.bin",
+      "sha256": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "bytes": 81768585
+    },
+    {
+      "file": "ggml-small-q5_1.bin",
+      "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
+      "bytes": 190085487
+    },
+    {
+      "file": "ggml-large-v3-turbo-q5_0.bin",
+      "sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+      "bytes": 574041195,
+      "experimental": "Czech test candidate; short encoder context; not quality- or 8 GB-accepted"
+    },
+    {
+      "file": "ggml-medium-q5_0.bin",
+      "sha256": "19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f",
+      "bytes": 539212467,
+      "benchmarkOnly": true
+    }
   ]
 }

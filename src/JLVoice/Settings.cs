@@ -34,7 +34,7 @@ public sealed record Settings
         if (s.Provider is not ("offline" or "nvidia") || s.CloudConsentVersion is < 0 or > 1 ||
             (s.Provider == "nvidia" && (s.CloudConsentVersion != 1 || s.Language == "auto")) ||
             s.HoldThresholdMs is < 100 or > 1000 || s.PostRollMs is < 0 or > 500 || s.Language is not ("cs" or "en" or "auto") || s.Threads is < 1 or > 2 || !DictationKeys.IsSupported(s.Key) || (s.Key == DictationKeys.CapsLock && !s.PushToTalk) ||
-            s.Model is not ("ggml-base-q5_1.bin" or "ggml-base-q8_0.bin" or "ggml-small-q5_1.bin") ||
+            s.Model is not ("ggml-base-q5_1.bin" or "ggml-base-q8_0.bin" or "ggml-small-q5_1.bin" or "ggml-large-v3-turbo-q5_0.bin") ||
             s.Theme is not ("dark" or "light" or "system") || s.UiLanguage is not ("cs" or "en"))
             throw new InvalidDataException("Unsupported settings. Review settings.json in the portable folder.");
     }

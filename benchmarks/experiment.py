@@ -75,6 +75,6 @@ def main():
     # Content-free metrics plus public-corpus/control texts, printed because artifact storage may be unreachable.
     for row in summary:
         print('EXPERIMENT_DETAIL ' + json.dumps({k: row.get(k) for k in ('config', 'status', 'median_inference_ms', 'median_rtf', 'max_worker_wall_s',
-              'os_peak_worker_rss_bytes', 'detected_language_mismatches', 'texts')}, ensure_ascii=False))
+              'os_peak_worker_rss_bytes', 'detected_language_mismatches', 'texts')}))  # ASCII: Windows console is not UTF-8
 
 if __name__ == '__main__': main()

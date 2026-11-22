@@ -1,4 +1,4 @@
-param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin', [switch]$IncludeSmall)
+param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin', [switch]$IncludeSmall, [switch]$IncludeTurbo)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'Build the native portable package on Windows with PowerShell 7.' }
@@ -25,6 +25,7 @@ Get-ChildItem "$build/bin/Release" -File | Where-Object { $_.Extension -in '.dll
 $manifest = Get-Content "$root/models/manifest.json" -Raw | ConvertFrom-Json
 $includedModels = @($Model)
 if ($IncludeSmall -and $Model -ne 'ggml-small-q5_1.bin') { $includedModels += 'ggml-small-q5_1.bin' }
+if ($IncludeTurbo) { $includedModels += 'ggml-large-v3-turbo-q5_0.bin' } # Experimental Czech test candidate, not default.
 foreach ($includedModel in $includedModels) {
     $entry = $manifest.models | Where-Object file -eq $includedModel
     $cached = Join-Path $root "models/$includedModel"

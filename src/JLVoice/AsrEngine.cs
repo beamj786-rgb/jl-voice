@@ -7,6 +7,7 @@ namespace JLVoice;
 
 internal static class AsrEngine
 {
+    internal const string TurboModel = "ggml-large-v3-turbo-q5_0.bin";
     internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double? InferenceMs, double WorkerWallMs);
     private static Process StartWorker(ProcessStartInfo start)
     {
@@ -35,6 +36,9 @@ internal static class AsrEngine
         };
         foreach (var arg in new[] { "--model", model, "--language", settings.Language, "--threads", settings.Threads.ToString(), "--cpu-only" })
             start.ArgumentList.Add(arg);
+        // Measured on public audio (BENCHMARKS.md): turbo with full 30 s encoder context was ~4x slower;
+        // the bounded context kept most of its Czech gain. Other models keep the full context.
+        if (settings.Model == TurboModel) start.ArgumentList.Add("--short-context");
         var wall = Stopwatch.StartNew();
         using var process = StartWorker(start);
         Diagnostics.Mark("recognition_started", new { model = settings.Model, language = settings.Language, threads = settings.Threads });
