@@ -329,7 +329,7 @@ public partial class MainWindow : Window
                 await AudioPlayback.PlayAsync(wav, cts.Token);
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
-            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result);
+            var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav);
             await WindowsInput.InsertAsync(result.Text, target, cts.Token, handle); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }

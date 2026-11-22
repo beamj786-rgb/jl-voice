@@ -12,12 +12,15 @@ public partial class MainWindow
         if (ReplayButton is not null) ReplayButton.IsEnabled = false;
     }
     private void ForgetReplayClick(object sender, RoutedEventArgs e) => ForgetReplay();
-    private void ShowRecognition(AsrEngine.Result result)
+    private void ShowRecognition(AsrEngine.Result result, byte[] wav)
     {
+        var stats = AudioStats.Analyze(wav);
+        Diagnostics.Mark("audio_stats", new { seconds = stats?.Seconds, peak_dbfs = stats?.PeakDbfs, rms_dbfs = stats?.RmsDbfs, clipped = stats?.ClippedFraction, active = stats?.ActiveFraction, low_level = stats?.LowLevel });
         ResultText.Text = result.Text;
         RecognitionMetrics.Text = $"{result.Model} · {result.Language}\n" + T("Nahrávka", "Recording") + $": {result.AudioSeconds:F2} s · " +
             (result.InferenceMs is { } inference ? T("Inference", "Inference") + $": {inference / 1000:F2} s · " : "") +
-            (result.InferenceMs is null ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s";
+            (result.InferenceMs is null ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s" +
+            (stats is null ? "" : "\n" + stats.Describe(locale == "cs"));
     }
     private void ReplayClick(object sender, RoutedEventArgs e)
     {
@@ -32,7 +35,7 @@ public partial class MainWindow
             SetStatus(T("Přepisuji stejnou nahrávku…", "Transcribing the same recording…"));
             var result = await TranscribeSelectedAsync(replayWav!, cts.Token);
             cts.Token.ThrowIfCancellationRequested();
-            ShowRecognition(result);
+            ShowRecognition(result, replayWav!);
             SetStatus(T("Testovací přepis hotov. Text zůstává pouze zde.", "Test transcription complete. Text remains here only."));
         }
         catch (OperationCanceledException) { SetStatus(T("Test zrušen.", "Test cancelled.")); }

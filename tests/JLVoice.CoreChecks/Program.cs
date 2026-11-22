@@ -39,6 +39,22 @@ foreach (var length in new[] { 15998, 16001, 16000 * 2 * AudioCapture.MaxSeconds
 Check(true, "capture serializer rejects short, partial and oversized PCM");
 Check(PcmLevel.Display(0) == 0 && PcmLevel.Display(1) == 1 && PcmLevel.Display(.01f) < PcmLevel.Display(.1f), "display follows measured energy and remains bounded");
 
+// Level diagnostics separate capture problems from model problems.
+static byte[] Tone(double amplitude, int samples = 16000, bool clip = false)
+{
+    var pcm = new byte[samples * 2];
+    for (var i = 0; i < samples; ++i) { var n = clip ? short.MaxValue : (short)(Math.Sin(i * 2 * Math.PI * 440 / 16000) * amplitude * 32767); pcm[2*i] = (byte)n; pcm[2*i+1] = (byte)(n >> 8); }
+    return AudioCapture.EncodePcm(pcm);
+}
+var loud = AudioStats.Analyze(Tone(.5))!;
+Check(Math.Abs(loud.PeakDbfs!.Value - -6.02) < .1 && Math.Abs(loud.RmsDbfs!.Value - -9.03) < .1 && !loud.LowLevel && loud.ClippedFraction == 0 && loud.ActiveFraction == 1 && Math.Abs(loud.Seconds - 1) < 1e-9, "audio stats calibrate peak/RMS dBFS on a known tone");
+var quiet = AudioStats.Analyze(Tone(.0005))!;
+Check(quiet.LowLevel && quiet.PeakDbfs < -60 && quiet.ActiveFraction == 0, "very quiet capture (public-clip-like amplitude) is flagged low level");
+var silent = AudioStats.Analyze(AudioCapture.EncodePcm(new byte[32000]))!;
+Check(silent.PeakDbfs is null && silent.RmsDbfs is null && silent.LowLevel && silent.Describe(false).Contains("n/a"), "digital silence reports unknown dBFS (null), not zero");
+Check(AudioStats.Analyze(Tone(1, clip: true))!.ClippedFraction == 1, "full-scale clipping is counted");
+Check(AudioStats.Analyze([1, 2, 3]) is null && AudioStats.Analyze(new byte[64]) is null, "malformed audio yields no stats");
+
 var latch = new HoldKeyState();
 Check(latch.Change(true, true) == HoldAction.Start && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.Stop && latch.Change(false, true) == HoldAction.None, "a hold starts and stops once despite repeat and duplicate release");
 Check(latch.Change(true, false) == HoldAction.None && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.None, "a busy key press cannot start on repeat or stop another recording");
