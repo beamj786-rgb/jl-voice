@@ -1,6 +1,7 @@
 #include "whisper.h"
 #include "ggml-backend.h"
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -72,13 +73,36 @@ std::vector<float> read_audio() {
     return samples;
 }
 
+// Fixed, reviewed UTF-8 prompt presets. Arbitrary prompt text is not accepted
+// (Windows argv is not UTF-8; free text could also inject content).
+const char * prompt_preset(const std::string & id) {
+    if (id == "cs-dictation") return /* Czech dictation-style sentence, UTF-8 escaped for MSVC */
+        "Dobr\xc3\xbd" " den, tohle je diktov\xc3\xa1" "n\xc3\xad" " v \xc4\x8d" "e\xc5\xa1" "tin\xc4\x9b" " s diakritikou a interpunkc\xc3\xad" ".";
+    throw std::runtime_error("Unknown prompt preset");
+}
+
+// Peak normalization toward -6 dBFS, gain capped at +30 dB so near-silence is not
+// turned into loud noise. Returns the applied linear gain.
+float normalize_peak(std::vector<float> & audio) {
+    float peak = 0;
+    for (float v : audio) peak = std::max(peak, std::abs(v));
+    if (peak <= 0) return 1.0f;
+    const float gain = std::min(0.5f / peak, 31.62f);
+    if (gain <= 1.0f) return 1.0f;
+    for (float & v : audio) v *= gain;
+    return gain;
+}
+
 int run(int argc, char ** argv) {
-    std::string model, language = "auto";
+    std::string model, language = "auto", prompt;
     int threads = 2;
-    bool cpu_only = false;
+    bool cpu_only = false, normalize = false, short_context = false;
     for (int i = 1; i < argc; ++i) {
         const std::string key = argv[i];
         if (key == "--cpu-only") cpu_only = true;
+        else if (key == "--normalize") normalize = true;
+        else if (key == "--short-context") short_context = true;
+        else if (i + 1 < argc && key == "--prompt-preset") prompt = prompt_preset(argv[++i]);
         else if (i + 1 < argc && key == "--model") model = argv[++i];
         else if (i + 1 < argc && key == "--language") language = argv[++i];
         else if (i + 1 < argc && key == "--threads") {
@@ -90,6 +114,7 @@ int run(int argc, char ** argv) {
     if (!cpu_only || model.empty() || (language != "cs" && language != "en" && language != "auto"))
         throw std::runtime_error("Required: --cpu-only --model PATH [--language cs|en|auto] [--threads 1|2]");
     auto audio = read_audio();
+    const float gain = normalize ? normalize_peak(audio) : 1.0f;
     const auto load_start = std::chrono::steady_clock::now();
     ggml_backend_load_all();
     auto context_params = whisper_context_default_params();
@@ -110,6 +135,9 @@ int run(int argc, char ** argv) {
     params.suppress_blank = true;
     params.temperature = 0.0f;
     params.temperature_inc = 0.2f;
+    if (!prompt.empty()) params.initial_prompt = prompt.c_str();
+    // Encoder frames are 50/s; a bounded margin keeps short dictation from paying for 30 s.
+    if (short_context) params.audio_ctx = std::min(1500, int(audio.size() / 16000.0 * 50) + 128);
     params.print_realtime = false;
     params.print_progress = false;
     params.print_timestamps = false;
@@ -138,6 +166,8 @@ int run(int argc, char ** argv) {
     std::cerr << "JLVOICE_METRICS {\"load_ms\":" << std::chrono::duration<double, std::milli>(decode_start - load_start).count()
               << ",\"inference_ms\":" << std::chrono::duration<double, std::milli>(decode_end - decode_start).count()
               << ",\"audio_seconds\":" << audio.size() / 16000.0
+              << ",\"applied_gain\":" << gain << ",\"prompt\":" << (prompt.empty() ? "false" : "true")
+              << ",\"audio_ctx\":" << params.audio_ctx
               << ",\"detected_language\":\"" << whisper_lang_str(whisper_full_lang_id(context.get())) << "\",\"peak_rss_bytes\":"
               << (peak_rss ? std::to_string(peak_rss) : "null") << ",\"process_cpu_ms\":"
               << (cpu_ms >= 0 ? std::to_string(cpu_ms) : "null") << "}\n";

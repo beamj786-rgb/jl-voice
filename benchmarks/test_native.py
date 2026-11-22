@@ -29,6 +29,10 @@ class NativeInputTests(unittest.TestCase):
         r = self.run_worker(output.getvalue())
         self.assertNotEqual(r.returncode, 0)
         self.assertIn(b'Expected mono 16 kHz', r.stderr)
+    def test_rejects_free_prompt_text(self):
+        r = self.run_worker(b'', '--prompt-preset', 'anything else')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(b'Unknown prompt preset', r.stderr)
     def test_declared_riff_length(self):
         r = self.run_worker(b'RIFF' + bytes(4) + b'WAVE')
         self.assertNotEqual(r.returncode, 0)
