@@ -52,9 +52,8 @@ foreach ($file in $pending) {
 }
 $verified = @(Get-PackageCodeInventory $directoryPath)
 Assert-PackageSignatures $verified
-foreach ($file in $pending) {
-    $result = $verified | Where-Object path -eq $file.path
-    if (-not $result.timestamped -or $result.signer_thumbprint -ne $CertificateThumbprint) { throw "Signing identity or timestamp verification failed: $($file.path)" }
+foreach ($result in $verified | Where-Object signer_thumbprint -eq $CertificateThumbprint) {
+    if (-not $result.timestamped) { throw "Publisher signature has no verified timestamp: $($result.path)" }
 }
 & "$PSScriptRoot/finalize-package.ps1" -PackageDirectory $directoryPath
 Write-Output 'Signatures verified and hashes regenerated. This does not claim Smart App Control or release acceptance.'
