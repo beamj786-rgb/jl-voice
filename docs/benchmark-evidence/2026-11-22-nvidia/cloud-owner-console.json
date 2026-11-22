@@ -1,0 +1,157 @@
+{
+  "evidence_source": "Owner-provided complete six-sample console output in chat, 2026-11-22; original JSON not inspected",
+  "engine": "NVIDIA hosted Parakeet TDT 0.6B via supplied test kit",
+  "agent_executed_request": false,
+  "owner_reported_completed_requests": 6,
+  "server_model_version": null,
+  "server_inference_ms": null,
+  "server_peak_ram_bytes": null,
+  "groups": {
+    "cs": {
+      "words": 20,
+      "word_errors": 9,
+      "wer": 0.45,
+      "characters": 132,
+      "character_errors": 24,
+      "cer": 0.18181818181818182,
+      "median_request_seconds_from_rounded_console": 0.25
+    },
+    "en": {
+      "words": 31,
+      "word_errors": 4,
+      "wer": 0.12903225806451613,
+      "characters": 155,
+      "character_errors": 5,
+      "cer": 0.03225806451612903,
+      "median_request_seconds_from_rounded_console": 0.19
+    }
+  },
+  "samples": [
+    {
+      "id": "cs-1652",
+      "language": "cs",
+      "reference": "Hlavním náboženstvím Moldavska je ortodoxní křesťanství.",
+      "text": "Hlavním náboženstvím Moldavska je ortodoxní křesťanství.",
+      "request_wall_seconds_rounded": 0.69,
+      "score": {
+        "words": 6,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "characters": 55,
+        "character_errors": 0,
+        "cer": 0.0,
+        "wer": 0.0,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "87b4c2261081a990d14ae45b7ac4c9d7d8341fee24de3055f273726a8a405076",
+      "received_report_audio_sha256": null
+    },
+    {
+      "id": "cs-1578",
+      "language": "cs",
+      "reference": "Poté zpěv bhajanů převzal Lakkha Singh.",
+      "text": "Nespě v bajonu převzal Lakasang.",
+      "request_wall_seconds_rounded": 0.22,
+      "score": {
+        "words": 6,
+        "substitutions": 4,
+        "deletions": 1,
+        "insertions": 0,
+        "characters": 38,
+        "character_errors": 15,
+        "cer": 0.39473684210526316,
+        "wer": 0.8333333333333334,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "4eb041e4d43dd10f0daac3b402bb414891a2736a6f72a9ffd5e716c689a7cdc2",
+      "received_report_audio_sha256": null
+    },
+    {
+      "id": "cs-1515",
+      "language": "cs",
+      "reference": "Je to Martellyho pátá CEP za čtyři roky.",
+      "text": "Je to martilé pátáce vzal čtyři roky.",
+      "request_wall_seconds_rounded": 0.25,
+      "score": {
+        "words": 8,
+        "substitutions": 3,
+        "deletions": 1,
+        "insertions": 0,
+        "characters": 39,
+        "character_errors": 9,
+        "cer": 0.23076923076923078,
+        "wer": 0.5,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "51f314b86bfe3a88e46ee057c5a0695f1db128baa4e51029268b5bc2b04b6062",
+      "received_report_audio_sha256": null
+    },
+    {
+      "id": "en-1554",
+      "language": "en",
+      "reference": "He built a WiFi door bell, he said.",
+      "text": "He built a Wi-Fi doorbell, he said.",
+      "request_wall_seconds_rounded": 0.19,
+      "score": {
+        "words": 8,
+        "substitutions": 3,
+        "deletions": 0,
+        "insertions": 0,
+        "characters": 33,
+        "character_errors": 2,
+        "cer": 0.06060606060606061,
+        "wer": 0.375,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "0754de5c9da60fe4729fe3978e602a24900563477f0ddb786f17cb2b63974bfd",
+      "received_report_audio_sha256": null
+    },
+    {
+      "id": "en-1656",
+      "language": "en",
+      "reference": "Police said that the body appeared to have been there for about a day.",
+      "text": "Police said that the body appeared to have been there for about a day.",
+      "request_wall_seconds_rounded": 0.25,
+      "score": {
+        "words": 14,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "characters": 69,
+        "character_errors": 0,
+        "cer": 0.0,
+        "wer": 0.0,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "5e1b6a3a40794f4d2d5462a81644f1ff39943a315197a226c571dea3a2aa369d",
+      "received_report_audio_sha256": null
+    },
+    {
+      "id": "en-1622",
+      "language": "en",
+      "reference": "U.S. President George W. Bush welcomed the announcement.",
+      "text": "U. S. President George W. Booth welcomed the announcement.",
+      "request_wall_seconds_rounded": 0.19,
+      "score": {
+        "words": 9,
+        "substitutions": 1,
+        "deletions": 0,
+        "insertions": 0,
+        "characters": 53,
+        "character_errors": 3,
+        "cer": 0.05660377358490566,
+        "wer": 0.1111111111111111,
+        "hallucinated_words": 0
+      },
+      "expected_kit_audio_sha256": "631d357f0aa90e9ba6f844a616fd4e611f75cc3eb14b3a26154004df5ff3d35e",
+      "received_report_audio_sha256": null
+    }
+  ],
+  "limitations": [
+    "Times copied from console rounded to 0.01 seconds; they include request/network/server/response, not insertion.",
+    "Expected kit hashes are provenance references, not hashes attested from the owner original JSON.",
+    "Three short clips per language, 20 Czech and 31 English words; no general language accuracy, mixed speech or production acceptance.",
+    "WER includes tokenization differences such as WiFi vs Wi-Fi and door bell vs doorbell."
+  ]
+}

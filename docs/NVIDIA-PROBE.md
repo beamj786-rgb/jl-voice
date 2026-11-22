@@ -61,3 +61,16 @@ The public English clips have very low PCM amplitude (roughly 0.0004–0.0008 fu
 The initial Windows benchmark failed before producing an accepted report: redirected Python stdout used cp1252 and could not encode Czech `ř`. The failure was confirmed in Windows logs and reproduced locally with `PYTHONIOENCODING=cp1252`. Worker protocol now uses ASCII JSON escapes; UTF-8 report files restore the exact Unicode text. A protocol regression check covers Czech diacritics and emoji across a cp1252 pipe. This fixes the developer benchmark's transport, not an asserted cause of prior JL Voice WPF/native insertion errors. No failed-run scores are included above.
 
 The cloud kit can be downloaded from [the successful Windows run](https://github.com/beamj786-rgb/jl-voice/actions/runs/45059057919/artifacts/14768831898). The earlier independently built kit is the same cloud client and remains usable; the later change repaired only the local Python benchmark protocol. The app itself was not rebuilt/replaced or given a cloud default. No release/deployment occurred.
+
+## Owner-reported real cloud run — 2026-11-22
+
+The owner ran the supplied kit with their own key and pasted the complete console output for all six public fixtures. The response texts and rounded request times are preserved in [console-derived evidence](benchmark-evidence/2026-11-22-nvidia/cloud-owner-console.json). The original JSON has not been inspected; expected kit audio hashes are recorded separately from unreceived owner-report hashes. The agent did not receive the key or execute those cloud requests.
+
+| Language | Word errors / reference words | WER | CER | Median request time from rounded console |
+|---|---:|---:|---:|---:|
+| Czech | 9 / 20 | 45.0% | 18.2% | 0.25 s |
+| English | 4 / 31 | 12.9% | 3.2% | 0.19 s |
+
+The first request took 0.69 s; the other five took 0.19–0.25 s as displayed. These are request wall times, not server inference-only or Caps-release-to-insertion measurements. No server hardware/RAM/model-version claim is made.
+
+The first Czech sentence and the English police sentence exactly match their references. English WiFi/door bell formatting accounts for three of four token errors; Bush→Booth is a real name error. The two Czech clips with foreign names/abbreviations remain substantially wrong. This is a promising responsiveness result and improved output on these fixtures, not general Czech quality acceptance, an app integration, or proof of guaranteed free-service latency. The app remains offline by default; natural owner microphone speech, technical vocabulary and mixed language remain the next acceptance boundary.
