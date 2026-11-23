@@ -138,19 +138,20 @@ def main():
                     reference=clip['reference'], language=clip['language'], origin=f"{clip['audio']} + {noise_name}")
 
     results = []
-    for threshold in [float(x) for x in args.thresholds.split(',')]:
+    variants = [(float(x), False) for x in args.thresholds.split(',')] + [(0.5, True)]
+    for threshold, vad_normalize in variants:
         for row in rows:
             r = subprocess.run([str(args.runtime), '--cpu-only', '--vad-only', '--vad-model', str(args.vad_model),
-                                '--vad-threshold', str(threshold), '--threads', '2'],
+                                '--vad-threshold', str(threshold), '--threads', '2', *(['--vad-normalize'] if vad_normalize else [])],
                                input=(args.output / row['audio']).read_bytes(), capture_output=True, timeout=120)
             if r.returncode: raise RuntimeError(f"VAD worker failed on {row['id']}")
             m = [json.loads(l[16:]) for l in r.stderr.decode('utf-8').splitlines() if l.startswith('JLVOICE_METRICS ')][0]
-            results.append(dict(threshold=threshold, id=row['id'], group=row['group'], seconds=row['seconds'], rms_dbfs=row['rms_dbfs'],
+            results.append(dict(threshold=threshold, vad_normalize=vad_normalize, id=row['id'], group=row['group'], seconds=row['seconds'], rms_dbfs=row['rms_dbfs'],
                                 speech=m['verdict'] == 'speech', vad_speech_seconds=m['vad_speech_seconds'], vad_segments=m['vad_segments'],
                                 vad_first_s=m['vad_first_s'], vad_last_s=m['vad_last_s'], vad_ms=m['vad_ms']))
     summary = {}
     for res in results:
-        key = f"{res['threshold']}/{res['group']}"
+        key = f"{res['threshold']}{'+vadnorm' if res['vad_normalize'] else ''}/{res['group']}"
         s = summary.setdefault(key, dict(n=0, detected_speech=0))
         s['n'] += 1; s['detected_speech'] += res['speech']
     # Subset for the (slower) full ASR + guard run: every no-speech/babble file, and for 3 cs + 3 en clips

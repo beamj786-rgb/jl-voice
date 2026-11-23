@@ -128,8 +128,12 @@ struct VadResult {
     double speech_seconds = 0, first_s = 0, last_s = 0, ms = 0;
 };
 
-VadResult run_vad(const std::string & path, const std::vector<float> & audio, int threads, float threshold) {
+// vad_normalize: the VAD (only) sees a peak-normalized copy (gain capped at +30 dB); Whisper never does.
+VadResult run_vad(const std::string & path, const std::vector<float> & original, int threads, float threshold, bool vad_normalize) {
     VadResult result; result.ran = true;
+    std::vector<float> copy;
+    if (vad_normalize) { copy = original; normalize_peak(copy); }
+    const std::vector<float> & audio = vad_normalize ? copy : original;
     const auto start = std::chrono::steady_clock::now();
     auto context_params = whisper_vad_default_context_params();
     context_params.use_gpu = false;   // CPU-only contract.
@@ -159,13 +163,14 @@ int run(int argc, char ** argv) {
     std::string model, language = "auto", prompt, vad_model;
     int threads = 2;
     float vad_threshold = 0.5f;
-    bool cpu_only = false, normalize = false, short_context = false, vad_only = false;
+    bool cpu_only = false, normalize = false, short_context = false, vad_only = false, vad_normalize = false;
     for (int i = 1; i < argc; ++i) {
         const std::string key = argv[i];
         if (key == "--cpu-only") cpu_only = true;
         else if (key == "--normalize") normalize = true;
         else if (key == "--short-context") short_context = true;
         else if (key == "--vad-only") vad_only = true;
+        else if (key == "--vad-normalize") vad_normalize = true;
         else if (i + 1 < argc && key == "--vad-model") vad_model = argv[++i];
         else if (i + 1 < argc && key == "--vad-threshold") {
             const std::string value = argv[++i];
@@ -190,7 +195,7 @@ int run(int argc, char ** argv) {
     ggml_backend_load_all();
     // Layer 1: the VAD sees the original (never normalized) audio. It only gates; audio is not trimmed.
     VadResult vad;
-    if (!vad_model.empty()) vad = run_vad(vad_model, audio, threads, vad_threshold);
+    if (!vad_model.empty()) vad = run_vad(vad_model, audio, threads, vad_threshold, vad_normalize);
     const float gain = normalize ? normalize_peak(audio) : 1.0f;
 
     std::vector<jlvoice::SegmentEvidence> evidence;
@@ -262,6 +267,7 @@ int run(int argc, char ** argv) {
       << ",\"audio_ctx\":" << audio_ctx
       << ",\"detected_language\":" << (whisper_ran ? "\"" + detected + "\"" : std::string("null"))
       << ",\"vad\":" << (vad.ran ? "true" : "false")
+      << ",\"vad_normalize\":" << (vad_normalize ? "true" : "false")
       << ",\"vad_threshold\":" << number_or_null(vad.ran, vad_threshold)
       << ",\"vad_ms\":" << number_or_null(vad.ran, vad.ms)
       << ",\"vad_segments\":" << (vad.ran ? std::to_string(vad.segments) : "null")

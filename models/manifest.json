@@ -34,10 +34,12 @@
     {
       "file": "ggml-silero-v6.2.0.bin",
       "repository": "ggml-org/whisper-vad",
-      "revision": "main",
+      "revision": "9ffd54a1e1ee413ddf265af9913beaf518d1639b",
       "role": "voice-activity-detection",
       "license": "MIT (Silero VAD, Silero Team); ggml conversion by whisper.cpp models/convert-silero-vad-to-ggml.py",
-      "pinStatus": "unpinned: SHA-256/size/revision to be recorded from the first verified CI download"
+      "sha256": "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987",
+      "bytes": 885098,
+      "provenance": "SHA-256/size first observed via Hugging Face LFS metadata and verified download in CI run 45255464718"
     }
   ]
 }

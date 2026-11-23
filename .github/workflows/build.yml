@@ -186,9 +186,9 @@ jobs:
       - name: Guarded ASR on clean speech and on VAD conditions
         shell: pwsh
         run: |
-          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label -clean --only small --only turbo+short
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label=-clean --only small --only turbo+short
           if ($LASTEXITCODE -ne 0) { throw 'Guarded clean-speech experiment failed.' }
-          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/vad-conditions/asr-corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label -conditions --only small --only turbo+short
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/vad-conditions/asr-corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label=-conditions --only small --only turbo+short
           if ($LASTEXITCODE -ne 0) { throw 'Guarded conditions experiment failed.' }
           Copy-Item artifacts/model-provenance.jsonl, artifacts/stt-corpus/corpus.json artifacts/stt-experiment/
       - name: Upload experiment results (no audio)

@@ -26,11 +26,15 @@ $manifest = Get-Content "$root/models/manifest.json" -Raw | ConvertFrom-Json
 $includedModels = @($Model)
 if ($IncludeSmall -and $Model -ne 'ggml-small-q5_1.bin') { $includedModels += 'ggml-small-q5_1.bin' }
 if ($IncludeTurbo) { $includedModels += 'ggml-large-v3-turbo-q5_0.bin' } # Experimental Czech test candidate, not default.
+$includedModels += 'ggml-silero-v6.2.0.bin' # Required no-speech gate (MIT, Silero VAD).
 foreach ($includedModel in $includedModels) {
     $entry = $manifest.models | Where-Object file -eq $includedModel
     $cached = Join-Path $root "models/$includedModel"
     if (-not (Test-Path $cached)) {
-        Invoke-WebRequest "https://huggingface.co/$($manifest.repository)/resolve/$($manifest.revision)/$includedModel" -OutFile "$cached.part"
+        $repository = if ($entry.PSObject.Properties.Name -contains 'repository') { $entry.repository } else { $manifest.repository }
+        $revision = if ($entry.PSObject.Properties.Name -contains 'revision') { $entry.revision } else { $manifest.revision }
+        if (-not $entry.sha256) { throw "Model $includedModel is not pinned in the manifest." }
+        Invoke-WebRequest "https://huggingface.co/$repository/resolve/$revision/$includedModel" -OutFile "$cached.part"
         if ((Get-FileHash "$cached.part" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256 -or (Get-Item "$cached.part").Length -ne $entry.bytes) { throw 'Model download integrity mismatch.' }
         Move-Item "$cached.part" $cached
     }
