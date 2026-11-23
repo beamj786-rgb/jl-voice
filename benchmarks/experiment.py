@@ -54,7 +54,7 @@ def main():
         ids = [(r['id'], r['mode'], r['audio_sha256']) for r in report['samples']]
         if identity is not None and ids != identity: raise RuntimeError('Configurations did not use identical audio')
         identity = ids
-        speech = [r for r in report['samples'] if r['group'] in ('cs', 'en')] or [r for r in report['samples'] if r['reference']]
+        speech = [r for r in report['samples'] if r['group'] in ('cs', 'en')] or [r for r in report['samples'] if r['score']['words'] > 0]
         summary.append(dict(config=name, model=model, status='complete', groups=report['groups'],
             median_inference_ms=statistics.median([r['inference_ms'] for r in speech if r['inference_ms'] is not None] or [None]) if any(r['inference_ms'] is not None for r in speech) else None,
             median_rtf=statistics.median(r['rtf'] for r in speech),
