@@ -56,14 +56,14 @@ def main():
         identity = ids
         speech = [r for r in report['samples'] if r['group'] in ('cs', 'en')] or [r for r in report['samples'] if r['reference']]
         summary.append(dict(config=name, model=model, status='complete', groups=report['groups'],
-            median_inference_ms=statistics.median(r['inference_ms'] for r in speech),
+            median_inference_ms=statistics.median([r['inference_ms'] for r in speech if r['inference_ms'] is not None] or [None]) if any(r['inference_ms'] is not None for r in speech) else None,
             median_rtf=statistics.median(r['rtf'] for r in speech),
             max_worker_wall_s=max(r['transcription_wall_seconds'] for r in speech),
             os_peak_worker_rss_bytes=max((r['os_peak_worker_rss_bytes'] or 0) for r in report['samples']) or None,
             detected_language_mismatches=sum(r['detected_language'] not in (None, r['mode']) for r in speech),
             verdicts={g: {v: sum(1 for r in report['samples'] if r['group'] == g and r.get('verdict') == v) for v in ('ok', 'no_speech', 'suspicious', None)}
                       for g in sorted({r['group'] for r in report['samples']})},
-            samples=[dict(id=r['id'], mode=r['mode'], audio_seconds=round(r['audio_seconds'], 2), inference_ms=round(r['inference_ms']),
+            samples=[dict(id=r['id'], mode=r['mode'], audio_seconds=round(r['audio_seconds'], 2), inference_ms=None if r['inference_ms'] is None else round(r['inference_ms']),
                           wall_s=round(r['transcription_wall_seconds'], 2), rtf=round(r['rtf'], 3), audio_ctx=r.get('audio_ctx'),
                           peak_rss_bytes=r['os_peak_worker_rss_bytes'], detected=r['detected_language'],
                           words=r['score']['words'], sub=r['score']['substitutions'], dele=r['score']['deletions'], ins=r['score']['insertions'],

@@ -72,8 +72,8 @@ static string Metrics(string verdict, string extra = "") => "noise\nJLVOICE_METR
     ",\"audio_seconds\":3.5,\"detected_language\":" + (verdict == "no_speech" ? "null" : "\"cs\"") + ",\"vad_speech_seconds\":2.1,\"verdict\":\"" + verdict + "\",\"reasons\":[" + extra + "]}\r\n";
 var okResult = AsrEngine.ParseWorkerOutput("Dobrý den.\n", Metrics("ok"), "m.bin", "cs", 10);
 Check(okResult.Insertable && okResult.Text == "Dobrý den." && okResult.Language == "cs" && okResult.InferenceMs == 5 && okResult.SpeechSeconds == 2.1, "ok worker result with text is insertable");
-var silent = AsrEngine.ParseWorkerOutput("\n", Metrics("no_speech", "\"vad_no_speech\""), "m.bin", "cs", 10);
-Check(!silent.Insertable && silent.Text == "" && silent.InferenceMs is null && silent.Language == "cs" && silent.Reasons!.SequenceEqual(new[] { "vad_no_speech" }), "no-speech result inserts nothing and keeps unknown inference null");
+var silentResult = AsrEngine.ParseWorkerOutput("\n", Metrics("no_speech", "\"vad_no_speech\""), "m.bin", "cs", 10);
+Check(!silentResult.Insertable && silentResult.Text == "" && silentResult.InferenceMs is null && silentResult.Language == "cs" && silentResult.Reasons!.SequenceEqual(new[] { "vad_no_speech" }), "no-speech result inserts nothing and keeps unknown inference null");
 Check(!AsrEngine.ParseWorkerOutput("Titulky vytvořil JohnyX.", Metrics("no_speech"), "m.bin", "cs", 1).Insertable, "text under a no_speech verdict is discarded");
 var loop = AsrEngine.ParseWorkerOutput("vytvořil vytvořil vytvořil", Metrics("suspicious", "\"word_loop\""), "m.bin", "cs", 1);
 Check(!loop.Insertable && loop.Text.Length > 0 && loop.Reasons!.Contains("word_loop"), "suspicious result is kept for review but not insertable");
