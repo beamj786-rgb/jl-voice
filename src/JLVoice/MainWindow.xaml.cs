@@ -347,6 +347,8 @@ public partial class MainWindow : Window
                 SetStatus(T("Přepisuji…", "Transcribing…"));
             }
             var result = await TranscribeSelectedAsync(wav, cts.Token); cts.Token.ThrowIfCancellationRequested(); ShowRecognition(result, wav, timing);
+            // Only a plausible transcript of detected speech is inserted automatically.
+            if (!result.Insertable) { ShowWithheld(result); return; }
             await WindowsInput.InsertAsync(result.Text, target, cts.Token, handle); Diagnostics.Mark("text_insertion_sent");
             SetStatus(T("Text odeslán do původního pole.", "Text sent to the original field.") + $"  {latency.Elapsed.TotalSeconds:F1} s"); bubble.SetCompleted(locale);
         }

@@ -65,7 +65,8 @@ def run_sample(executable, model, audio, language, threads, extra=()):
                 inference_ms=metrics[0]['inference_ms'], model_load_ms=metrics[0]['load_ms'],
                 detected_language=metrics[0]['detected_language'],
                 applied_gain=metrics[0].get('applied_gain'), audio_ctx=metrics[0].get('audio_ctx'),
-                prompt=metrics[0].get('prompt'),
+                prompt=metrics[0].get('prompt'), verdict=metrics[0].get('verdict'), reasons=metrics[0].get('reasons'),
+                vad_speech_seconds=metrics[0].get('vad_speech_seconds'), segments=metrics[0].get('segments'),
                 os_peak_worker_rss_bytes=metrics[0].get('peak_rss_bytes'),
                 worker_cpu_ms=metrics[0].get('process_cpu_ms'),
                 transcription_wall_seconds=elapsed, rtf=elapsed / duration,
@@ -86,6 +87,7 @@ def main():
     parser.add_argument('--normalize', action='store_true')
     parser.add_argument('--short-context', action='store_true')
     parser.add_argument('--czech-prompt', action='store_true', help='cs-dictation preset only when the requested language is cs')
+    parser.add_argument('--vad-model', type=pathlib.Path, help='enable the no-speech gate and guard verdicts')
     args = parser.parse_args()
     if args.repeats < 1: parser.error('--repeats must be positive')
     executable, model = args.runtime.resolve(strict=True), args.model.resolve(strict=True)
@@ -101,7 +103,8 @@ def main():
         if args.modes == 'explicit': modes = [m for m in modes if m != 'auto']
         for mode in modes:
             extra = (['--normalize'] if args.normalize else []) + (['--short-context'] if args.short_context else []) + \
-                    (['--prompt-preset', 'cs-dictation'] if args.czech_prompt and mode == 'cs' else [])
+                    (['--prompt-preset', 'cs-dictation'] if args.czech_prompt and mode == 'cs' else []) + \
+                    (['--vad-model', str(args.vad_model.resolve(strict=True))] if args.vad_model else [])
             for repeat in range(args.repeats):
                 row = run_sample(executable, model, audio, mode, args.threads, extra)
                 row.update(id=sample['id'], group=sample.get('group', sample['language']), mode=mode, repeat=repeat,
@@ -124,7 +127,7 @@ def main():
     report = dict(schema=1, platform=platform.platform(), cpu=platform.processor(),
                   logical_cpus=psutil.cpu_count(), physical_ram_bytes=psutil.virtual_memory().total,
                   cpu_only=True, threads=args.threads, model=model.name, model_sha256=sha256(model),
-                  options=dict(modes=args.modes, normalize=args.normalize, short_context=args.short_context, czech_prompt=args.czech_prompt),
+                  options=dict(modes=args.modes, normalize=args.normalize, short_context=args.short_context, czech_prompt=args.czech_prompt, vad=bool(args.vad_model)),
                   executable_sha256=sha256(executable), groups=groups, samples=rows,
                   minimum_hardware_accepted=False,
                   limitations=['ASR worker only, not full app memory or insertion latency.',

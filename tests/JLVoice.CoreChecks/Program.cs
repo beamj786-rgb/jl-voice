@@ -67,6 +67,25 @@ Check(CaptureTiming.Since(1000, 0) is null && CaptureTiming.Since(1000, 1320) ==
 var timingText = new CaptureTiming(5, 90, null).Describe(false);
 Check(timingText.Contains("+5 ms") && timingText.Contains("+90 ms") && timingText.Contains("delivered +n/a"), "capture timing names delivery, not first-sample time, and keeps unknowns unknown");
 
+// Worker result contract: only "ok" with text is ever insertable.
+static string Metrics(string verdict, string extra = "") => "noise\nJLVOICE_METRICS {\"load_ms\":1,\"inference_ms\":" + (verdict == "no_speech" ? "null" : "5") +
+    ",\"audio_seconds\":3.5,\"detected_language\":" + (verdict == "no_speech" ? "null" : "\"cs\"") + ",\"vad_speech_seconds\":2.1,\"verdict\":\"" + verdict + "\",\"reasons\":[" + extra + "]}\r\n";
+var okResult = AsrEngine.ParseWorkerOutput("Dobrý den.\n", Metrics("ok"), "m.bin", "cs", 10);
+Check(okResult.Insertable && okResult.Text == "Dobrý den." && okResult.Language == "cs" && okResult.InferenceMs == 5 && okResult.SpeechSeconds == 2.1, "ok worker result with text is insertable");
+var silent = AsrEngine.ParseWorkerOutput("\n", Metrics("no_speech", "\"vad_no_speech\""), "m.bin", "cs", 10);
+Check(!silent.Insertable && silent.Text == "" && silent.InferenceMs is null && silent.Language == "cs" && silent.Reasons!.SequenceEqual(new[] { "vad_no_speech" }), "no-speech result inserts nothing and keeps unknown inference null");
+Check(!AsrEngine.ParseWorkerOutput("Titulky vytvořil JohnyX.", Metrics("no_speech"), "m.bin", "cs", 1).Insertable, "text under a no_speech verdict is discarded");
+var loop = AsrEngine.ParseWorkerOutput("vytvořil vytvořil vytvořil", Metrics("suspicious", "\"word_loop\""), "m.bin", "cs", 1);
+Check(!loop.Insertable && loop.Text.Length > 0 && loop.Reasons!.Contains("word_loop"), "suspicious result is kept for review but not insertable");
+Check(AsrEngine.ParseWorkerOutput("  \n", Metrics("ok"), "m.bin", "cs", 1).Verdict == "no_speech", "empty transcript is never inserted even if the worker says ok");
+foreach (var bad in new[] { Metrics("maybe"), "no metrics here" })
+{
+    try { AsrEngine.ParseWorkerOutput("x", bad, "m.bin", "cs", 1); throw new Exception("Bad worker output accepted"); }
+    catch (InvalidDataException) { }
+}
+Check(true, "unknown verdicts and missing metrics are rejected");
+Check(new AsrEngine.Result("Cloud text", "NVIDIA", "cs", 2, null, 100).Insertable, "cloud results keep the existing insert behavior (verdict ok by default)");
+
 var latch = new HoldKeyState();
 Check(latch.Change(true, true) == HoldAction.Start && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.Stop && latch.Change(false, true) == HoldAction.None, "a hold starts and stops once despite repeat and duplicate release");
 Check(latch.Change(true, false) == HoldAction.None && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.None, "a busy key press cannot start on repeat or stop another recording");

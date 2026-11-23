@@ -25,6 +25,20 @@ public partial class MainWindow
             (timing is null ? "" : "\n" + timing.Describe(locale == "cs")) +
             "\nBuild: " + (BuildInfo.Commit ?? "n/a");
     }
+    // Nothing is inserted. No speech: explain; suspicious: keep the text visible for manual review/copy.
+    private void ShowWithheld(AsrEngine.Result result)
+    {
+        var reasons = string.Join(", ", result.Reasons ?? []);
+        Diagnostics.Mark("insertion_withheld", new { verdict = result.Verdict, reasons = result.Reasons });
+        var replay = replayWav is not null ? T(" Nahrávku můžete přehrát nebo přepsat znovu v Pokročilých.", " You can replay or re-transcribe the recording in Advanced.") : "";
+        if (result.Verdict == "no_speech")
+            ShowNotice(new ErrorNotice(T("Řeč nebyla zachycena – nic nebylo vloženo.", "No speech detected – nothing was inserted."),
+                T("Mluvte až po zobrazení „Nahrávám“, případně zkontrolujte mikrofon.", "Speak once 'Recording' is shown, or check the microphone.") + replay, reasons));
+        else
+            ShowNotice(new ErrorNotice(T("Přepis nebyl vložen – zkontrolujte ho.", "Transcript not inserted – please review it."),
+                T("Výsledek vypadá nespolehlivě (možná halucinace nebo opakování). Pokud je správný, použijte Kopírovat a vložte ho ručně (Ctrl+V).",
+                  "The result looks unreliable (possible hallucination or repetition). If it is correct, use Copy and paste it manually (Ctrl+V).") + replay, reasons));
+    }
     private void ReplayClick(object sender, RoutedEventArgs e)
     {
         if (!reviewMode && !busy && capture is null && replayWav is not null && !closing && !suspended) activeTask = ReplayAsync();
@@ -39,7 +53,8 @@ public partial class MainWindow
             var result = await TranscribeSelectedAsync(replayWav!, cts.Token);
             cts.Token.ThrowIfCancellationRequested();
             ShowRecognition(result, replayWav!);
-            SetStatus(T("Testovací přepis hotov. Text zůstává pouze zde.", "Test transcription complete. Text remains here only."));
+            if (!result.Insertable) ShowWithheld(result);
+            else SetStatus(T("Testovací přepis hotov. Text zůstává pouze zde.", "Test transcription complete. Text remains here only."));
         }
         catch (OperationCanceledException) { SetStatus(T("Test zrušen.", "Test cancelled.")); }
         catch (Exception error) { Notify(error); }

@@ -8,7 +8,34 @@ namespace JLVoice;
 internal static class AsrEngine
 {
     internal const string TurboModel = "ggml-large-v3-turbo-q5_0.bin";
-    internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double? InferenceMs, double WorkerWallMs);
+    internal const string VadModel = "ggml-silero-v6.2.0.bin";
+    // Verdict: "ok" (insert), "no_speech" (insert nothing), "suspicious" (show for manual review, never auto-insert).
+    internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double? InferenceMs, double WorkerWallMs,
+        string Verdict = "ok", IReadOnlyList<string>? Reasons = null, double? SpeechSeconds = null)
+    {
+        internal bool Insertable => Verdict == "ok" && !string.IsNullOrWhiteSpace(Text);
+    }
+
+    // Parses the worker's single JLVOICE_METRICS line. Never persists raw stderr.
+    internal static Result ParseWorkerOutput(string stdout, string stderr, string modelName, string requestedLanguage, double wallMs)
+    {
+        var metricLine = stderr.Split('\n').Select(line => line.TrimEnd('\r')).LastOrDefault(line => line.StartsWith("JLVOICE_METRICS ", StringComparison.Ordinal))
+            ?? throw new InvalidDataException("Speech engine did not report inference metrics.");
+        using var metrics = JsonDocument.Parse(metricLine[16..]);
+        var root = metrics.RootElement;
+        static double? Number(JsonElement root, string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
+        var verdict = root.TryGetProperty("verdict", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
+        if (verdict is not ("ok" or "no_speech" or "suspicious")) throw new InvalidDataException("Speech engine reported an unknown result state.");
+        var reasons = root.TryGetProperty("reasons", out var r) && r.ValueKind == JsonValueKind.Array
+            ? r.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToArray() : [];
+        var text = stdout.Trim();
+        // Defense in depth: an empty transcript is never inserted, whatever the worker said.
+        if (text.Length == 0) verdict = "no_speech";
+        if (verdict == "no_speech") text = "";
+        var language = root.TryGetProperty("detected_language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : requestedLanguage;
+        return new Result(text, modelName, language, Number(root, "audio_seconds") ?? throw new InvalidDataException("Speech engine did not report audio length."),
+            Number(root, "inference_ms"), wallMs, verdict, reasons, Number(root, "vad_speech_seconds"));
+    }
     private static Process StartWorker(ProcessStartInfo start)
     {
         try { return Process.Start(start) ?? throw new IOException("Cannot start the bundled speech engine."); }
@@ -25,8 +52,9 @@ internal static class AsrEngine
     {
         var exe = Path.Combine(AppContext.BaseDirectory, "runtime", "JLVoiceAsr.exe");
         var model = Path.Combine(AppContext.BaseDirectory, "models", settings.Model);
-        if (!File.Exists(exe) || !File.Exists(model))
-            throw new FileNotFoundException("Portable package is incomplete: bundled whisper runtime or multilingual model is missing.");
+        var vad = Path.Combine(AppContext.BaseDirectory, "models", VadModel);
+        if (!File.Exists(exe) || !File.Exists(model) || !File.Exists(vad))
+            throw new FileNotFoundException("Portable package is incomplete: bundled whisper runtime, multilingual model or voice activity model is missing.");
         var start = new ProcessStartInfo(exe)
         {
             UseShellExecute = false, CreateNoWindow = true,
@@ -34,7 +62,7 @@ internal static class AsrEngine
             StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
             WorkingDirectory = Path.GetDirectoryName(exe)!
         };
-        foreach (var arg in new[] { "--model", model, "--language", settings.Language, "--threads", settings.Threads.ToString(), "--cpu-only" })
+        foreach (var arg in new[] { "--model", model, "--language", settings.Language, "--threads", settings.Threads.ToString(), "--cpu-only", "--vad-model", vad })
             start.ArgumentList.Add(arg);
         // Measured on public audio (BENCHMARKS.md): turbo with full 30 s encoder context was ~4x slower;
         // the bounded context kept most of its Czech gain. Other models keep the full context.
@@ -53,16 +81,12 @@ internal static class AsrEngine
             await process.StandardInput.BaseStream.WriteAsync(wav, timeout.Token);
             process.StandardInput.Close();
             await process.WaitForExitAsync(timeout.Token);
-            var text = (await output).Trim();
+            var stdout = await output;
             var errorOutput = await errors; // Parse numeric metrics only; never persist raw stderr.
             if (process.ExitCode != 0) throw new IOException($"Speech engine exited with code {process.ExitCode}.");
-            if (string.IsNullOrWhiteSpace(text)) throw new InvalidDataException("No speech recognized. Try again or explicitly select Czech / English.");
-            var metricLine = errorOutput.Split('\n').LastOrDefault(line => line.StartsWith("JLVOICE_METRICS ", StringComparison.Ordinal))
-                ?? throw new InvalidDataException("Speech engine did not report inference metrics.");
-            using var metrics = JsonDocument.Parse(metricLine[16..]);
-            var result = new Result(text, settings.Model, metrics.RootElement.GetProperty("detected_language").GetString()!,
-                metrics.RootElement.GetProperty("audio_seconds").GetDouble(), metrics.RootElement.GetProperty("inference_ms").GetDouble(), wall.Elapsed.TotalMilliseconds);
-            Diagnostics.Mark("recognition_completed", new { model = result.Model, language = result.Language, audio_seconds = result.AudioSeconds, inference_ms = result.InferenceMs, worker_wall_ms = result.WorkerWallMs });
+            var result = ParseWorkerOutput(stdout, errorOutput, settings.Model, settings.Language, wall.Elapsed.TotalMilliseconds);
+            Diagnostics.Mark("recognition_completed", new { model = result.Model, language = result.Language, audio_seconds = result.AudioSeconds, inference_ms = result.InferenceMs,
+                worker_wall_ms = result.WorkerWallMs, verdict = result.Verdict, reasons = result.Reasons, speech_seconds = result.SpeechSeconds });
             return result;
         }
         catch (Exception) when (timeout.IsCancellationRequested)

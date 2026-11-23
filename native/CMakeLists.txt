@@ -27,3 +27,10 @@ elseif(WIN32)
   target_sources(JLVoiceAsr PRIVATE worker.rc)
 endif()
 target_link_libraries(JLVoiceAsr PRIVATE whisper)
+
+# Model-free unit tests for the transcript guard (run in CI and locally).
+add_executable(JLVoiceGuardTest guard_test.cpp)
+target_include_directories(JLVoiceGuardTest PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+  target_compile_options(JLVoiceGuardTest PRIVATE /utf-8)
+endif()

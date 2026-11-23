@@ -9,6 +9,11 @@ on:
         required: false
         type: boolean
         default: false
+      experiment_only:
+        description: Run only the STT experiment job (no package job)
+        required: false
+        type: boolean
+        default: false
       audit_runs:
         description: Comma-separated run IDs whose stt-experiment artifacts are printed for audit (no build)
         required: false
@@ -23,7 +28,7 @@ permissions:
   contents: read
 jobs:
   windows-cpu-package:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.audit_runs == '' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.audit_runs == '' && !inputs.experiment_only) }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -155,25 +160,36 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Pinned whisper.cpp checkout failed.' }
           cmake -S native -B artifacts/native -A x64 "-DWHISPER_SOURCE=$PWD/vendor/whisper.cpp" -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DBUILD_SHARED_LIBS=ON
           if ($LASTEXITCODE -ne 0) { throw 'Configure failed.' }
-          cmake --build artifacts/native --config Release --target JLVoiceAsr --parallel 4
+          cmake --build artifacts/native --config Release --target JLVoiceAsr JLVoiceGuardTest --parallel 4
           if ($LASTEXITCODE -ne 0) { throw 'Worker build failed.' }
+          ./artifacts/native/bin/Release/JLVoiceGuardTest.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Transcript guard unit tests failed.' }
           $env:JL_VOICE_WORKER = "$PWD/artifacts/native/bin/Release/JLVoiceAsr.exe"
           python benchmarks/test_native.py
           if ($LASTEXITCODE -ne 0) { throw 'Native worker checks failed.' }
       - name: Fetch models and public corpus
         shell: pwsh
         run: |
-          foreach ($m in 'ggml-base-q5_1.bin','ggml-small-q5_1.bin','ggml-large-v3-turbo-q5_0.bin') {
+          foreach ($m in 'ggml-base-q5_1.bin','ggml-small-q5_1.bin','ggml-large-v3-turbo-q5_0.bin','ggml-silero-v6.2.0.bin') {
             python benchmarks/fetch_model.py --model $m --output artifacts/models | Tee-Object -Append artifacts/model-provenance.jsonl
             if ($LASTEXITCODE -ne 0) { throw "Model fetch failed: $m" }
           }
           python benchmarks/fetch_public.py --output artifacts/stt-corpus --count 10 --controls --long
           if ($LASTEXITCODE -ne 0) { throw 'Public corpus fetch failed.' }
-      - name: Paired decoding experiment
+      - name: No-speech protection (VAD conditions)
         shell: pwsh
         run: |
-          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --only small --only small+norm --only turbo+short --only turbo+norm+short --only turbo
-          if ($LASTEXITCODE -ne 0) { throw 'Experiment failed.' }
+          python benchmarks/vad_eval.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --vad-model artifacts/models/ggml-silero-v6.2.0.bin --corpus artifacts/stt-corpus/corpus.json --output artifacts/vad-conditions --cache artifacts/noise-cache
+          if ($LASTEXITCODE -ne 0) { throw 'VAD evaluation failed.' }
+          New-Item -ItemType Directory -Force artifacts/stt-experiment | Out-Null
+          Copy-Item artifacts/vad-conditions/vad-results.json, artifacts/vad-conditions/asr-corpus.json artifacts/stt-experiment/
+      - name: Guarded ASR on clean speech and on VAD conditions
+        shell: pwsh
+        run: |
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label -clean --only small --only turbo+short
+          if ($LASTEXITCODE -ne 0) { throw 'Guarded clean-speech experiment failed.' }
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/vad-conditions/asr-corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label -conditions --only small --only turbo+short
+          if ($LASTEXITCODE -ne 0) { throw 'Guarded conditions experiment failed.' }
           Copy-Item artifacts/model-provenance.jsonl, artifacts/stt-corpus/corpus.json artifacts/stt-experiment/
       - name: Upload experiment results (no audio)
         if: ${{ always() }}
