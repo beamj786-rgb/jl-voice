@@ -87,7 +87,17 @@ jobs:
           from run import run_sample
           result = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve(), Path('artifacts/capture-roundtrip.wav').resolve(), 'en', 2)
           assert 'country' in result['text'].lower()
-          print('Public English fixture passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
+          # Packaged no-speech gate exactly as the app invokes it (--vad-model from the package).
+          import wave
+          vad = ['--vad-model', str(Path('artifacts/JLVoice/models/ggml-silero-v6.2.0.bin').resolve(strict=True))]
+          model = Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve()
+          gated = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), model, Path('artifacts/capture-roundtrip.wav').resolve(), 'en', 2, vad)
+          assert gated['verdict'] == 'ok' and 'country' in gated['text'].lower(), gated
+          with wave.open('artifacts/silence.wav', 'wb') as f:
+              f.setnchannels(1); f.setsampwidth(2); f.setframerate(16000); f.writeframes(bytes(16000 * 2 * 3))
+          silent = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), model, Path('artifacts/silence.wav').resolve(), 'cs', 2, vad)
+          assert silent['verdict'] == 'no_speech' and silent['text'] == '' and silent['inference_ms'] is None, silent
+          print('Public English fixture and packaged no-speech gate passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
           '@ | python -
       - name: Windows tray startup and idle monitor smoke test
         run: python benchmarks/app.py --app artifacts/JLVoice/JLVoice.exe --seconds 12 --scenario idle --output artifacts/ci-idle.json
