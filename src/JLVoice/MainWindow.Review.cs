@@ -98,6 +98,14 @@ public partial class MainWindow
         Width = 540; Height = 440; await Capture("compact-policy-block-fixture");
         if (!NoticePanel.IsVisible || StatusText.ActualHeight > 65 || (StatusText.Text + NoticeBody.Text + NoticeDetailsText.Text).Contains("FixtureUser")) issues.Add("Policy error layout leaked the profile path or lost its bounded heading.");
         ReadyStatus(); ResetBubble();
+        // Withheld results: shown for review, never inserted (no destination exists in review mode).
+        var suspicious = new AsrEngine.Result("UI TEST · vytvořil vytvořil vytvořil", "fixture", "cs", 3, 100, 200, "suspicious", new[] { "word_loop" }, 2.5);
+        ShowRecognition(suspicious, []); ShowWithheld(suspicious); await Capture("withheld-suspicious-fixture");
+        if (!NoticePanel.IsVisible || ResultText.Text != suspicious.Text || !NoticeDetailsText.Text.Contains("word_loop") || suspicious.Insertable) issues.Add("Suspicious result was not shown for manual review.");
+        var silent = new AsrEngine.Result("", "fixture", "cs", 3, null, 50, "no_speech", new[] { "vad_no_speech" }, 0);
+        ShowRecognition(silent, []); ShowWithheld(silent); await Capture("withheld-no-speech-fixture");
+        if (!NoticePanel.IsVisible || ResultText.Text.Length != 0 || silent.Insertable) issues.Add("No-speech result did not explain that nothing was inserted.");
+        ResultText.Clear(); ReadyStatus(); ResetBubble();
         UiLanguage.SelectedIndex = 1; Width = 540; Height = 440; Navigate(false); await Capture("compact-english-overview");
         Navigate(true); await Capture("compact-english-settings"); Advanced.IsExpanded = true; await SettleAsync(); PageScroll.ScrollToEnd(); await Capture("compact-english-settings-bottom"); PageScroll.ScrollToTop();
         DictationLanguage.Focus(); var originalFocus = Keyboard.FocusedElement;
