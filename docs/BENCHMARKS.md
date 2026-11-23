@@ -70,3 +70,32 @@ Per-recording findings:
 Conclusion: turbo roughly halves Czech word errors vs Small on this public set, at ~1.6× Small's worker RAM and RTF ~2.2 on long recordings (45 s took ~100 s here); slower hardware would be slower still. It is an optional owner-test model only, not a default and not 8 GB-qualified. All configs insert text on silence/noise; a speech-presence guard is needed before release (not implemented in this round).
 
 Per-recording references, transcripts, S/D/I and character errors for every configuration and run: [TRANSCRIPTS.md](benchmark-evidence/2026-11-23-czech-decoding/TRANSCRIPTS.md) (raw lines: `audit-lines.jsonl`). Group aggregates recomputed from per-recording counts match the reported values (0 mismatches); every audio_ctx matches the formula.
+
+## No-speech protection (Phase 1, run 45265694632, source c330180)
+
+Layers (offline path): (1) Silero VAD v6.2.0 (ggml, pinned SHA-256 2aa269b7…6987, threshold 0.5, min speech 250 ms) on the original audio before Whisper is loaded — no speech means no transcript and no Whisper load; audio is gated, never trimmed; (2) Whisper per-segment no-speech probability > 0.6 or mean token log-probability < −1.0 → suspicious; (3) loop/length plausibility (repeated units/phrases, > 40-char token, > 30 chars/s, < 0.5 words/s over ≥ 1.5 s of detected speech) → suspicious. `ok` is inserted; `no_speech` inserts nothing; `suspicious` is shown for manual review and copy. Raw lines: [run-45265694632.jsonl](benchmark-evidence/2026-11-23-no-speech/run-45265694632.jsonl).
+
+VAD alone (threshold 0.5, 297 generated conditions from FLEURS, synthetic noise and DEMAND channel 1, CC BY-SA 3.0):
+
+| Condition | Detected as speech |
+|---|---|
+| No speech: digital silence, white −60/−50/−40 dBFS, pink −45/−35, impulse clicks, DEMAND office/living/kitchen at natural level and scaled to −30 dBFS (17) | 0 / 17 |
+| Original speech, cs and en (−68 to −11 dBFS RMS) | 20 / 20 |
+| Speech −20/−30 dB: Czech | 20 / 20 |
+| Speech −20/−30 dB: English (−80 to −98 dBFS RMS) | 2 / 20 (rejected → nothing inserted) |
+| Speech in white/office/cafeteria noise, SNR 10/5/0 dB | 179 / 180 |
+| Cafeteria with background voices (babble) | 1 / 3 (the −30 dBFS excerpt) |
+
+A VAD-only normalization variant detected all speech but accepted 2/17 no-speech files (quiet living-room ambience); it is not enabled.
+
+Full ASR + all layers:
+
+| Set | Small | Turbo + short |
+|---|---|---|
+| Clean speech (20 short + 4 long) | 24 ok, 0 withheld | 23 ok, 1 suspicious (cs-1578 "Konec.", a real failure) |
+| Silence/noise controls (2) and no-speech conditions (17) | 19 no_speech, 0 inserted | 19 no_speech, 0 inserted |
+| Speech −30 dB (3 cs, 3 en) | 3 ok, 3 no_speech (en, ~−90 dBFS) | same |
+| Speech in office/cafeteria noise, SNR 5 dB (12) | 12 ok | 11 ok, 1 suspicious (repeated sentence, caught) |
+| Cafeteria babble (3) | 2 no_speech, **1 inserted** "(Kouká se vám závodit)" | 2 no_speech, **1 inserted** "Konec." |
+
+WER on detected speech is unchanged (guard never alters text). VAD median 34 ms per recording. Remaining false insertion: loud background conversation. Not 8 GB hardware; not owner microphone audio.
