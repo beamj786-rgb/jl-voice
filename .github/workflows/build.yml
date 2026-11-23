@@ -9,6 +9,11 @@ on:
         required: false
         type: boolean
         default: false
+      audit_runs:
+        description: Comma-separated run IDs whose stt-experiment artifacts are printed for audit (no build)
+        required: false
+        type: string
+        default: ''
       quality_benchmark:
         description: Run paired public CZ/EN Base and Small CPU probe
         required: false
@@ -18,6 +23,7 @@ permissions:
   contents: read
 jobs:
   windows-cpu-package:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.audit_runs == '' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -110,6 +116,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       # No GitHub Release or deployment. Application upload is manual opt-in only.
+  artifact-audit:
+    # Read-only: prints earlier public-corpus experiment reports to the log; no package, model or app change.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.audit_runs != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download and print experiment artifacts
+        env:
+          RUNS: ${{ inputs.audit_runs }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in ${RUNS//,/ }; do
+            [[ "$run" =~ ^[0-9]+$ ]] || { echo "Invalid run id"; exit 1; }
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name stt-experiment --dir "audit/$run"
+          done
+          python3 benchmarks/dump_reports.py audit/*
   stt-experiment:
     # Developer-only paired decoding experiment on identical public audio; no package or default change.
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.quality_benchmark }}
