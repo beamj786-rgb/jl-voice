@@ -44,3 +44,27 @@ During the active run, dictate in Notepad/VS Code/browser fields while browsing,
 Cold startup requires a documented reboot/cold-cache run. Warm startup is a separate repeated launch. Compare normal desktop activity with and without the app, including input/scroll latency and a repeatable foreground task. The monitor's scenario label is **not** a measurement of desktop interference. Record actual observations and timings separately. Compare unload-each-dictation with a measured experimental resident-worker implementation; the current implementation does not yet support the latter.
 
 Before release, test with network disabled and on a clean Windows machine without development tools or additional runtimes. Inspect process modules and confirm no GPU backend/context is loaded. Test microphone removal, cancellation, short/silent/noisy recordings, shutdown, focus changes, held modifiers, elevated apps and rejected/partial text insertion.
+
+## Czech decoding experiment (2026-11-23, run 45081113086, source ac5efc2)
+
+Hosted Windows runner, CPU-only, 2 threads, below-normal priority, one fresh worker per recording (model load included in wall time). Public FLEURS dev read speech: 10 shortest Czech and 10 shortest English clips (3.0–4.7 s), plus concatenations of the same clips (cs 17.7 s / 45.2 s, en 17.1 s / 42.2 s) and two synthetic 3 s controls (digital silence, −60 dBFS noise; requested language cs). Not owner dictation, not mixed speech, not 8 GB hardware. This runner was ~2× slower than earlier runs on the same configs; WER also shifted slightly between runners (Small cs 49.5% → 51.6%), so compare configs only within one run.
+
+Turbo = `ggml-large-v3-turbo-q5_0.bin`, ggerganov/whisper.cpp @5359861, 574 041 195 B, SHA-256 394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2. Short context = `audio_ctx = min(1500, floor(seconds×50)+128)` encoder frames (1500 = full 30 s window), so it has no effect on recordings ≥ ~27.4 s.
+
+| Config | cs WER / CER (short) | en WER / CER (short) | cs-long WER / CER | en-long WER | Short clips: median / max wall, median RTF | 45 s cs wall (RTF) | Peak worker RAM |
+|---|---|---|---|---|---|---|---|
+| Small | 51.6% / 17.0% | 16.4% / 8.2% | 43.9% / 13.9% | 16.0% | 9.6 / 11.7 s, 2.41 | 37.8 s (0.83) | 553 MiB |
+| Small + norm | 49.5% / 17.0% | 13.6% / 6.7% | 43.9% / 13.9% | 13.5% | 9.4 / 14.3 s, 2.37 | 37.4 s (0.83) | 552 MiB |
+| Turbo + short | 25.3% / 10.5% | 15.5% / 7.2% | 18.9% / 6.8% | 15.4% | 9.9 / 17.0 s, 2.45 | 99.8 s (2.21) | 895 MiB |
+| Turbo full | 24.2% / 8.5% | 12.7% / 5.8% | 18.2% / 6.7% | 15.4% | 42.6 / 43.6 s, 10.69 | 99.7 s (2.20) | 895 MiB |
+| Turbo + norm + short | 26.3% / 10.5% | 16.4% / 8.4% | 18.2% / 6.7% | **39.1%** | 9.7 / 23.3 s, 2.45 | 98.7 s (2.18) | 895 MiB |
+
+Controls (every config hallucinated; any word here is an error): Small/Small+norm: silence "[Mužické výstře]", noise "*zvukování*". Turbo+short: silence "Konec. Konec.", noise "Titulky vytvořil JohnyX.". Turbo full: "Titulky vytvořil JohnyX." for both. Turbo+norm+short: "Konec. Konec." / "Konec.".
+
+Per-recording findings:
+- Short context caused one complete miss: Czech clip cs-1578 (3.0 s) → "Konec." with short context, while full context produced (garbled) speech. Other Czech clips were identical or within one word between short and full context.
+- Long recordings: turbo+short and turbo full produced the same long-form text (≥27.4 s uses the full window anyway); no repeated passages (max 1 inserted word). Small inserted 5 words on the 45 s Czech recording.
+- Turbo + normalization dropped the first third of the 42 s English recording (50 deleted words, 1 substitution); the earlier run's CER 42.8% for this config was not inspected per sample (artifact unreachable) and did not reproduce here (CER 10.5%). Normalization is rejected: no Czech gain, one long-form omission.
+- Czech prompt preset (earlier runs): small WER gain, 15+ hallucinated control words. Rejected.
+
+Conclusion: turbo roughly halves Czech word errors vs Small on this public set, at ~1.6× Small's worker RAM and RTF ~2.2 on long recordings (45 s took ~100 s here); slower hardware would be slower still. It is an optional owner-test model only, not a default and not 8 GB-qualified. All configs insert text on silence/noise; a speech-presence guard is needed before release (not implemented in this round).
