@@ -104,3 +104,21 @@ Source `1cc9ba2e02d63b6e051c7d52bebdffdaaadae510`: [Windows CI 45064455886](http
 [Development Windows ZIP](https://github.com/beamj786-rgb/jl-voice/actions/runs/45064455886/artifacts/14771120644): 311,382,143 bytes; unsigned, not a release; artifact retention seven days. Extract to a new folder. You may copy only your previous settings.json into the new folder to retain provider/language/microphone preferences; saved API keys live separately in Windows Credential Manager and are loaded only when RememberNvidiaKey was enabled. Otherwise set NVIDIA/Czech/consent/key again. Do not copy old executables or runtime DLLs over this package.
 
 Owner test: compare Last transcript with inserted Notepad text exactly, repeat with a harmless pre-existing clipboard and a browser field. Czech recognition quality remains unresolved: do not use this input-transport fix as evidence that NVIDIA understands the recording correctly. For a same-audio comparison, opt into memory-only audio retention, record once in Czech, then save Offline/Small and replay without inserting; clear retention afterward. No private audio upload to developers is necessary.
+
+### Sprint G — settings and build identity (manual verification)
+
+Automated: CoreChecks (default English, preserved saved language/model, atomic save with `.bak`, refused/blocked writes leave `settings.json` byte-identical, invalid files preserved as `settings.invalid-*.json` with the offending field named, build-identity parsing, second-instance message) and the WPF review (rejected save explained next to the Save button, draft versus active, discard, successful-save confirmation, default English). Hosted CI proves none of the Windows behaviour below on a real desktop.
+
+On a Windows 11 PC, with an unpacked **new** ZIP:
+
+1. Open `BUILD-INFO.json`; its `source_commit` must equal the `Build:` shown on the Overview page and under every transcript, and the window title shows the 8-character commit.
+2. Start the new build while an **older** JL Voice is still in the tray: a message must name the running build/folder and this copy, and this copy must exit without changing anything. Exit the old one from the tray and start again.
+3. First start without `settings.json` (or with the shipped one): Overview/Settings show "Active configuration: Offline · Base · English · microphone: …", source "settings.json" (or built-in defaults).
+4. Settings → choose "NVIDIA cloud" without consent/key → Save: the red/bold explanation must appear **inside Settings under the Save button** ("Settings were NOT saved… Still active: Offline …"), not only on the Overview.
+5. Change any setting without saving, then press Back / Hide / the window X: a Save / Discard / Stay dialog names what is still active. Discard must also restore theme and interface language; Stay keeps the draft.
+6. Save a valid change: "Saved. Active: …" with the new backend; restart the app and confirm the same configuration.
+7. Close the app, open `settings.json` in an editor and break it (for example `"Model": "x"`), start the app: a message says defaults are active (or `.bak` restored); `settings.invalid-*.json` holds your broken file; Settings shows the source line.
+8. After a transcript, the metrics show `Backend: Offline · …` or `NVIDIA cloud · …`, `Requested language: …`, `detected: …` (offline) or `detected: not reported` (NVIDIA).
+9. Optional: `JLVoice.exe --diagnostics new-file.jsonl`; the file lists `build`, `config_active` (after start and after every save) and `config_at_recording` marks. They contain no key, text, audio, window titles or folder paths; the microphone name is included.
+
+Interrupted-write protection: `Save` writes `settings.json.new` with write-through, flushes, then swaps with `File.Replace`; a power loss leaves either the old or the new complete file, plus a stale `.new` that is ignored. This was tested by blocking the temporary file, not by cutting power.
