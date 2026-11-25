@@ -2,6 +2,8 @@
 
 This is a separate diagnostic kit, not a replacement JL Voice application or a production release. The desktop app and default offline behavior are unchanged. The owner authorized comparison of NVIDIA cloud/local speech models. No API key is embedded or collected by CI; no cloud audio request is made during build.
 
+> **Language-parameter experiment:** `JLVoice.NvidiaProbe.exe --language-experiment` (dry run by default) tests whether the `language` field changes the hosted endpoint's output on identical public audio; see [NVIDIA-LANGUAGE-EXPERIMENT.md](NVIDIA-LANGUAGE-EXPERIMENT.md). The kit's `public-corpus` now also holds extra clips and 5–60 s concatenations; the original six-clip probe below uses only the `short` tier.
+
 ## Windows cloud test, no Python or runtime install
 
 1. Extract the entire `JLVoice-NVIDIA-Cloud-Test-Windows-x64` ZIP to a new writable folder on the Windows PC that permits development executables.

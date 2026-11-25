@@ -1,4 +1,4 @@
-param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin', [switch]$IncludeSmall)
+param([ValidateSet('ggml-base-q5_1.bin','ggml-base-q8_0.bin','ggml-small-q5_1.bin')][string]$Model = 'ggml-base-q5_1.bin', [switch]$IncludeSmall, [switch]$IncludeTurbo)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'Build the native portable package on Windows with PowerShell 7.' }
@@ -25,11 +25,16 @@ Get-ChildItem "$build/bin/Release" -File | Where-Object { $_.Extension -in '.dll
 $manifest = Get-Content "$root/models/manifest.json" -Raw | ConvertFrom-Json
 $includedModels = @($Model)
 if ($IncludeSmall -and $Model -ne 'ggml-small-q5_1.bin') { $includedModels += 'ggml-small-q5_1.bin' }
+if ($IncludeTurbo) { $includedModels += 'ggml-large-v3-turbo-q5_0.bin' } # Experimental Czech test candidate, not default.
+$includedModels += 'ggml-silero-v6.2.0.bin' # Required no-speech gate (MIT, Silero VAD).
 foreach ($includedModel in $includedModels) {
     $entry = $manifest.models | Where-Object file -eq $includedModel
     $cached = Join-Path $root "models/$includedModel"
     if (-not (Test-Path $cached)) {
-        Invoke-WebRequest "https://huggingface.co/$($manifest.repository)/resolve/$($manifest.revision)/$includedModel" -OutFile "$cached.part"
+        $repository = if ($entry.PSObject.Properties.Name -contains 'repository') { $entry.repository } else { $manifest.repository }
+        $revision = if ($entry.PSObject.Properties.Name -contains 'revision') { $entry.revision } else { $manifest.revision }
+        if (-not $entry.sha256) { throw "Model $includedModel is not pinned in the manifest." }
+        Invoke-WebRequest "https://huggingface.co/$repository/resolve/$revision/$includedModel" -OutFile "$cached.part"
         if ((Get-FileHash "$cached.part" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256 -or (Get-Item "$cached.part").Length -ne $entry.bytes) { throw 'Model download integrity mismatch.' }
         Move-Item "$cached.part" $cached
     }
@@ -38,7 +43,7 @@ foreach ($includedModel in $includedModels) {
 }
 Copy-Item "$root/models/manifest.json" "$output/models/manifest.json"
 # Tell the app which bundled candidate this package contains.
-@{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
+@{ Model=$Model; Language='en'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
 Copy-Item "$vendor/LICENSE" "$output/licenses/whisper.cpp-MIT.txt"
 Copy-Item "$root/THIRD_PARTY_NOTICES.md" "$output/licenses/"
 Copy-Item "$root/LICENSE" "$output/licenses/LICENSE"
@@ -57,6 +62,7 @@ Get-ChildItem "$packageRoot/microsoft.netcore.app.runtime.win-x64","$packageRoot
 }
 if (-not (Test-Path "$output/runtime/JLVoiceAsr.exe")) { throw 'Missing packaged runtime.' }
 Copy-Item "$root/docs/TESTING.md" "$output/TESTING.md"
+Copy-Item "$root/docs/SPRINT-G-ACCEPTANCE.md" "$output/SPRINT-G-ACCEPTANCE.md"
 Copy-Item "$root/docs/NVIDIA-APP-TEST.md" "$output/NVIDIA-APP-TEST.md"
 Copy-Item "$root/docs/KNOWN_ISSUES.md" "$output/KNOWN_ISSUES.md"
 Copy-Item "$root/scripts/check-package.ps1" "$output/Check-Package.ps1"

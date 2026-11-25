@@ -9,6 +9,16 @@ on:
         required: false
         type: boolean
         default: false
+      experiment_only:
+        description: Run only the STT experiment job (no package job)
+        required: false
+        type: boolean
+        default: false
+      audit_runs:
+        description: Comma-separated run IDs whose stt-experiment artifacts are printed for audit (no build)
+        required: false
+        type: string
+        default: ''
       quality_benchmark:
         description: Run paired public CZ/EN Base and Small CPU probe
         required: false
@@ -18,6 +28,7 @@ permissions:
   contents: read
 jobs:
   windows-cpu-package:
+    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.audit_runs == '' && !inputs.experiment_only) }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -42,7 +53,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native desktop input checks failed.' }
       - name: Build self-contained CPU package (not a release)
         shell: pwsh
-        run: ./scripts/package.ps1 -IncludeSmall
+        run: ./scripts/package.ps1 -IncludeSmall -IncludeTurbo
       - name: Paired public CZ and EN CPU quality probe
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.quality_benchmark }}
         shell: pwsh
@@ -76,7 +87,17 @@ jobs:
           from run import run_sample
           result = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve(), Path('artifacts/capture-roundtrip.wav').resolve(), 'en', 2)
           assert 'country' in result['text'].lower()
-          print('Public English fixture passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
+          # Packaged no-speech gate exactly as the app invokes it (--vad-model from the package).
+          import wave
+          vad = ['--vad-model', str(Path('artifacts/JLVoice/models/ggml-silero-v6.2.0.bin').resolve(strict=True))]
+          model = Path('artifacts/JLVoice/models/ggml-base-q5_1.bin').resolve()
+          gated = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), model, Path('artifacts/capture-roundtrip.wav').resolve(), 'en', 2, vad)
+          assert gated['verdict'] == 'ok' and 'country' in gated['text'].lower(), gated
+          with wave.open('artifacts/silence.wav', 'wb') as f:
+              f.setnchannels(1); f.setsampwidth(2); f.setframerate(16000); f.writeframes(bytes(16000 * 2 * 3))
+          silent = run_sample(Path('artifacts/JLVoice/runtime/JLVoiceAsr.exe').resolve(), model, Path('artifacts/silence.wav').resolve(), 'cs', 2, vad)
+          assert silent['verdict'] == 'no_speech' and silent['text'] == '' and silent['inference_ms'] is None, silent
+          print('Public English fixture and packaged no-speech gate passed. This is not Czech, mixed-language, or minimum-hardware acceptance.')
           '@ | python -
       - name: Windows tray startup and idle monitor smoke test
         run: python benchmarks/app.py --app artifacts/JLVoice/JLVoice.exe --seconds 12 --scenario idle --output artifacts/ci-idle.json
@@ -110,3 +131,81 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       # No GitHub Release or deployment. Application upload is manual opt-in only.
+  artifact-audit:
+    # Read-only: prints earlier public-corpus experiment reports to the log; no package, model or app change.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.audit_runs != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download and print experiment artifacts
+        env:
+          RUNS: ${{ inputs.audit_runs }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in ${RUNS//,/ }; do
+            [[ "$run" =~ ^[0-9]+$ ]] || { echo "Invalid run id"; exit 1; }
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name stt-experiment --dir "audit/$run"
+          done
+          python3 benchmarks/dump_reports.py audit/*
+  stt-experiment:
+    # Developer-only paired decoding experiment on identical public audio; no package or default change.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.quality_benchmark }}
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Benchmark dependencies
+        run: python -m pip install -r benchmarks/requirements.txt
+      - name: Build pinned CPU worker
+        shell: pwsh
+        run: |
+          git clone https://github.com/ggml-org/whisper.cpp.git vendor/whisper.cpp
+          git -C vendor/whisper.cpp checkout --detach d1be6fde11ac6e0407606b4e42fe72d34add8037
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned whisper.cpp checkout failed.' }
+          cmake -S native -B artifacts/native -A x64 "-DWHISPER_SOURCE=$PWD/vendor/whisper.cpp" -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DBUILD_SHARED_LIBS=ON
+          if ($LASTEXITCODE -ne 0) { throw 'Configure failed.' }
+          cmake --build artifacts/native --config Release --target JLVoiceAsr JLVoiceGuardTest --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw 'Worker build failed.' }
+          ./artifacts/native/bin/Release/JLVoiceGuardTest.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Transcript guard unit tests failed.' }
+          $env:JL_VOICE_WORKER = "$PWD/artifacts/native/bin/Release/JLVoiceAsr.exe"
+          python benchmarks/test_native.py
+          if ($LASTEXITCODE -ne 0) { throw 'Native worker checks failed.' }
+      - name: Fetch models and public corpus
+        shell: pwsh
+        run: |
+          foreach ($m in 'ggml-base-q5_1.bin','ggml-small-q5_1.bin','ggml-large-v3-turbo-q5_0.bin','ggml-silero-v6.2.0.bin') {
+            python benchmarks/fetch_model.py --model $m --output artifacts/models | Tee-Object -Append artifacts/model-provenance.jsonl
+            if ($LASTEXITCODE -ne 0) { throw "Model fetch failed: $m" }
+          }
+          python benchmarks/fetch_public.py --output artifacts/stt-corpus --count 10 --controls --long
+          if ($LASTEXITCODE -ne 0) { throw 'Public corpus fetch failed.' }
+      - name: No-speech protection (VAD conditions)
+        shell: pwsh
+        run: |
+          python benchmarks/vad_eval.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --vad-model artifacts/models/ggml-silero-v6.2.0.bin --corpus artifacts/stt-corpus/corpus.json --output artifacts/vad-conditions --cache artifacts/noise-cache
+          if ($LASTEXITCODE -ne 0) { throw 'VAD evaluation failed.' }
+          New-Item -ItemType Directory -Force artifacts/stt-experiment | Out-Null
+          Copy-Item artifacts/vad-conditions/vad-results.json, artifacts/vad-conditions/asr-corpus.json artifacts/stt-experiment/
+      - name: Guarded ASR on clean speech and on VAD conditions
+        shell: pwsh
+        run: |
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/stt-corpus/corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label=-clean --only small --only turbo+short
+          if ($LASTEXITCODE -ne 0) { throw 'Guarded clean-speech experiment failed.' }
+          python benchmarks/experiment.py --runtime artifacts/native/bin/Release/JLVoiceAsr.exe --models artifacts/models --corpus artifacts/vad-conditions/asr-corpus.json --output artifacts/stt-experiment --vad-model artifacts/models/ggml-silero-v6.2.0.bin --label=-conditions --only small --only turbo+short
+          if ($LASTEXITCODE -ne 0) { throw 'Guarded conditions experiment failed.' }
+          Copy-Item artifacts/model-provenance.jsonl, artifacts/stt-corpus/corpus.json artifacts/stt-experiment/
+      - name: Upload experiment results (no audio)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stt-experiment
+          path: artifacts/stt-experiment/
+          if-no-files-found: warn
+          retention-days: 14

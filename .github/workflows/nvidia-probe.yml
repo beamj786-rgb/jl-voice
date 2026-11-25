@@ -1,6 +1,12 @@
 name: NVIDIA model probes (development only)
 on:
   workflow_dispatch:
+    inputs:
+      cloud_kit_only:
+        description: Build only the cloud test kit (skip the slow local Parakeet CPU probe)
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -18,6 +24,7 @@ jobs:
       - name: Developer-only pinned CPU benchmark dependencies
         run: python -m pip install sherpa-onnx==1.12.40 psutil==7.2.2 numpy==2.3.5
       - name: Public paired fixtures and integrity-pinned local model
+        if: ${{ !inputs.cloud_kit_only }}
         shell: pwsh
         run: |
           python benchmarks/fetch_public.py --output artifacts/public-corpus
@@ -26,10 +33,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Parakeet model verification failed.' }
       - name: Real local Parakeet CPU quality probe
         id: local
+        if: ${{ !inputs.cloud_kit_only }}
         shell: pwsh
         run: |
           python benchmarks/parakeet.py --model artifacts/parakeet-model/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8 --corpus artifacts/public-corpus/corpus.json --repeats 2 --output artifacts/parakeet-windows.json
           if ($LASTEXITCODE -ne 0) { throw 'Local Parakeet inference failed.' }
+      - name: Public corpus for the cloud kit (16 clips per language, 5/15/30/45/60 s concatenations)
+        shell: pwsh
+        run: |
+          python benchmarks/fetch_public.py --output artifacts/experiment-corpus --count 16 --durations 5,15,30,45,60
+          if ($LASTEXITCODE -ne 0) { throw 'Experiment corpus fetch failed.' }
       - name: Self-contained Windows cloud test kit (no API request in CI)
         id: cloud_kit
         if: ${{ !cancelled() }}
@@ -39,8 +52,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cloud test kit publish failed.' }
           & ./artifacts/NvidiaCloudTest/JLVoice.NvidiaProbe.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Cloud test kit contract tests failed.' }
-          Copy-Item artifacts/public-corpus artifacts/NvidiaCloudTest/public-corpus -Recurse
+          Copy-Item artifacts/experiment-corpus artifacts/NvidiaCloudTest/public-corpus -Recurse
           Copy-Item docs/NVIDIA-PROBE.md artifacts/NvidiaCloudTest/README.md
+          Copy-Item docs/NVIDIA-LANGUAGE-EXPERIMENT.md artifacts/NvidiaCloudTest/LANGUAGE-EXPERIMENT.md
+          # Dry runs only: verify the packaged corpus hashes and the request plan. No key is read and nothing is sent.
+          foreach ($set in 'short','duration','all') {
+            & ./artifacts/NvidiaCloudTest/JLVoice.NvidiaProbe.exe --language-experiment --set $set
+            if ($LASTEXITCODE -ne 0) { throw "Language experiment dry run failed: $set" }
+          }
           New-Item -ItemType Directory -Force artifacts/NvidiaCloudTest/licenses | Out-Null
           Copy-Item LICENSE artifacts/NvidiaCloudTest/licenses/JLVoice-MIT.txt
           Copy-Item LICENSE-SCOPE.md artifacts/NvidiaCloudTest/licenses/LICENSE-SCOPE.md

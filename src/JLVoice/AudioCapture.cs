@@ -12,14 +12,24 @@ internal sealed class AudioCapture : IDisposable
     private bool disposed;
     private float level;
     public float Level => Volatile.Read(ref level);
+    private long firstBufferTick;
+    // Environment.TickCount64 (~10-16 ms resolution) at: constructor entry (device open begins),
+    // StartRecording() return, and delivery of the first non-empty PCM buffer callback (0 = none yet).
+    // The first sample of that buffer is roughly BufferMilliseconds earlier; its exact time is not measured.
+    public long OpenStartedTick { get; } = Environment.TickCount64;
+    public long StartReturnedTick { get; private set; }
+    public long FirstBufferTick => Interlocked.Read(ref firstBufferTick);
+    public event Action? FirstBuffer;
+    public const int BufferMilliseconds = 50;
     public event Action<Exception>? Faulted;
     public const int MaxSeconds = 90;
     private const int MaxBytes = 16000 * 2 * MaxSeconds;
     public AudioCapture(int device)
     {
-        input = new WaveInEvent { DeviceNumber = device, WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = 50 };
+        input = new WaveInEvent { DeviceNumber = device, WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = BufferMilliseconds };
         input.DataAvailable += (_, e) =>
         {
+            if (e.BytesRecorded > 0 && Interlocked.CompareExchange(ref firstBufferTick, Environment.TickCount64, 0) == 0) FirstBuffer?.Invoke();
             Volatile.Write(ref level, PcmLevel.Rms(e.Buffer.AsSpan(0, e.BytesRecorded)));
             lock (gate) pcm.Write(e.Buffer, 0, Math.Min(e.BytesRecorded, MaxBytes - (int)pcm.Length));
         };
@@ -29,7 +39,7 @@ internal sealed class AudioCapture : IDisposable
             else stopped.TrySetResult();
         };
     }
-    public void Start() => input.StartRecording();
+    public void Start() { input.StartRecording(); StartReturnedTick = Environment.TickCount64; }
     public async Task<byte[]> StopAsync(bool discard = false)
     {
         input.StopRecording();

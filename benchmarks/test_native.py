@@ -29,6 +29,18 @@ class NativeInputTests(unittest.TestCase):
         r = self.run_worker(output.getvalue())
         self.assertNotEqual(r.returncode, 0)
         self.assertIn(b'Expected mono 16 kHz', r.stderr)
+    def test_rejects_free_prompt_text(self):
+        r = self.run_worker(b'', '--prompt-preset', 'anything else')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(b'Unknown prompt preset', r.stderr)
+    def test_vad_threshold_is_bounded(self):
+        r = self.run_worker(b'', '--vad-threshold', '0.99')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(b'VAD threshold must be', r.stderr)
+    def test_vad_only_requires_vad_model(self):
+        r = self.run_worker(b'', '--vad-only')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(b'--vad-only requires --vad-model', r.stderr)
     def test_declared_riff_length(self):
         r = self.run_worker(b'RIFF' + bytes(4) + b'WAVE')
         self.assertNotEqual(r.returncode, 0)

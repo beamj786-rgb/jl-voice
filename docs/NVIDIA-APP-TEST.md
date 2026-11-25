@@ -10,6 +10,13 @@
 
 Pošli vyslovenou větu, skutečný přepis, vybraný jazyk a zobrazený čas. Klíč a soukromé audio neposílej. Čas cloudového požadavku zahrnuje síť a službu; serverový čas inference API neposkytuje. Čas od puštění klávesy po vložení je další samostatné měření na tvém PC. Starší rychlosti CLI nejsou ověřením latence celé aplikace.
 
+### Nejkratší diagnostika české chyby (bez nových nástrojů)
+
+1. Nastavení → Pokročilé: zapni uchování posledního zvuku v paměti a přehrání před přepisem. Poslechni, zda je hlas dobře slyšet.
+2. Nadiktuj jednu českou větu přes NVIDIA s jazykem Čeština. Pod výsledkem opiš řádek „Zvuk: špička … RMS … clipping … aktivita“ a případné upozornění na tichý vstup.
+3. Změň jazyk na English (cloud), ulož a použij opakovaný přepis stejného zvuku. Pokud je text prakticky shodný, endpoint jazyk pravděpodobně ignoruje a rozhoduje sám; pokud se liší, jazykový parametr funguje.
+4. Přepni na Offline Small, ulož a použij opakovaný přepis stejného zvuku pro srovnání. Pošli větu, oba/tři přepisy a řádek se zvukem (žádné audio ani klíč).
+
 ## Chyby a soukromí
 
 401: zkontroluj klíč; 403: přístup účtu ke službě; 429: limit služby. Aplikace požadavek automaticky neopakuje ani nepřepíná na jiného poskytovatele. Po 120 sekundách se čekání ukončí. Zrušení nemůže vzít zpět již odeslané audio. Po chybě lze začít nové diktování. Výchozí offline režim nevyžaduje účet ani internet. Cloudová dostupnost, limity a pokračování bezplatného vývojového přístupu nejsou garantované.
