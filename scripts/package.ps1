@@ -62,6 +62,7 @@ Get-ChildItem "$packageRoot/microsoft.netcore.app.runtime.win-x64","$packageRoot
 }
 if (-not (Test-Path "$output/runtime/JLVoiceAsr.exe")) { throw 'Missing packaged runtime.' }
 Copy-Item "$root/docs/TESTING.md" "$output/TESTING.md"
+Copy-Item "$root/docs/SPRINT-G-ACCEPTANCE.md" "$output/SPRINT-G-ACCEPTANCE.md"
 Copy-Item "$root/docs/NVIDIA-APP-TEST.md" "$output/NVIDIA-APP-TEST.md"
 Copy-Item "$root/docs/KNOWN_ISSUES.md" "$output/KNOWN_ISSUES.md"
 Copy-Item "$root/scripts/check-package.ps1" "$output/Check-Package.ps1"

@@ -16,7 +16,7 @@ internal static class Program
         return (await JLVoice.NvidiaSpeechClient.TranscribeAsync(client, wav, key, code, true, CancellationToken.None)).Text;
     }
 
-    private static string ReadKey()
+    internal static string ReadKey()
     {
         if (Console.IsInputRedirected) throw new InvalidOperationException("Use an interactive console for the hidden API-key prompt.");
         var text = new StringBuilder();

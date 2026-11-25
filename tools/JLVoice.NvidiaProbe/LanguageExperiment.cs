@@ -6,7 +6,8 @@ using JLVoice;
 
 // Developer experiment: does the `language` form field of the hosted NVIDIA endpoint change the transcript?
 // Identical public FLEURS audio is sent once per language variant. Without --send NOTHING is sent and no key is read.
-// The API key comes only from the NVIDIA_API_KEY environment variable and is never printed or written.
+// The API key is typed into a hidden console prompt (or, for scripted use, read from NVIDIA_API_KEY with --key-from-env)
+// and is never printed or written. Managed strings cannot be zeroed: the key lives in this process only until it exits.
 internal static class LanguageExperiment
 {
     internal sealed record Audio(string Id, string Group, string Reference, double Seconds, string Sha256, byte[] Wav);
@@ -41,7 +42,7 @@ internal static class LanguageExperiment
         foreach (var sample in corpus.RootElement.GetProperty("samples").EnumerateArray())
         {
             var tier = sample.TryGetProperty("tier", out var t) ? t.GetString() : "short";
-            var wanted = set switch { "short" => tier == "short", "duration" => tier == "duration", "all" => tier is "short" or "duration", _ => throw new ArgumentException("--set must be short, duration or all") };
+            var wanted = set switch { "minimal" => tier == "short", "short" => tier == "short", "duration" => tier == "duration", "all" => tier is "short" or "duration", _ => throw new ArgumentException("--set must be minimal, short, duration or all") };
             if (!wanted || sample.TryGetProperty("group", out var g) && g.GetString() == "control") continue;
             var name = sample.GetProperty("audio").GetString()!;
             if (Path.GetFileName(name) != name) throw new InvalidDataException("Invalid sample name.");
@@ -50,6 +51,15 @@ internal static class LanguageExperiment
             if (digest != sample.GetProperty("audio_sha256").GetString()) throw new InvalidDataException("Public fixture integrity mismatch: " + name);
             var language = sample.GetProperty("language").GetString()!;
             result.Add(new(sample.GetProperty("id").GetString()!, tier == "duration" ? language + "-dur" : language, sample.GetProperty("reference").GetString()!, (wav.Length - 44) / 32000.0, digest, wav));
+        }
+        if (set == "minimal")
+        {
+            // One Czech and one English clip. Preferred: the clips the owner already ran through the CLI probe (cs-1652, en-1554),
+            // so earlier results are directly comparable; otherwise the first short clip of that language.
+            Audio? Pick(string prefix, string preferred) => result.FirstOrDefault(a => a.Id == preferred) ?? result.FirstOrDefault(a => a.Id.StartsWith(prefix + "-", StringComparison.Ordinal));
+            var chosen = new[] { Pick("cs", "cs-1652"), Pick("en", "en-1554") }.OfType<Audio>().ToList();
+            if (chosen.Count != 2) throw new InvalidDataException("The corpus lacks a Czech or English short clip for the minimal set.");
+            result = chosen;
         }
         return result.Count == 0 ? throw new InvalidDataException("The corpus has no samples for set '" + set + "'.") : result;
     }
@@ -172,34 +182,43 @@ internal static class LanguageExperiment
     internal static async Task<int> MainAsync(string[] args)
     {
         string set = "short", paramsCsv = "cs-CZ,cs,multi,en-GB,en-US,omit", corpusRoot = Path.Combine(AppContext.BaseDirectory, "public-corpus");
-        var send = false; var max = 100; var pauseMs = 1500;
+        var send = false; var max = 100; var pauseMs = 1500; var keyFromEnv = false; var paramsGiven = false;
         for (var i = 0; i < args.Length; ++i)
         {
             switch (args[i])
             {
                 case "--send": send = true; break;
                 case "--set" when i + 1 < args.Length: set = args[++i]; break;
-                case "--params" when i + 1 < args.Length: paramsCsv = args[++i]; break;
+                case "--params" when i + 1 < args.Length: paramsCsv = args[++i]; paramsGiven = true; break;
+                case "--key-from-env": keyFromEnv = true; break;
                 case "--max-requests" when i + 1 < args.Length && int.TryParse(args[i + 1], out max) && max is >= 1 and <= 200: ++i; break;
                 case "--pause-ms" when i + 1 < args.Length && int.TryParse(args[i + 1], out pauseMs) && pauseMs is >= 0 and <= 60000: ++i; break;
                 case "--corpus" when i + 1 < args.Length: corpusRoot = args[++i]; break;
-                default: Console.Error.WriteLine("Usage: --language-experiment [--set short|duration|all] [--params cs-CZ,cs,multi,en-GB,en-US,omit] [--max-requests N] [--pause-ms N] [--corpus DIR] [--send]\nNo API key belongs on the command line: set NVIDIA_API_KEY."); return 1; }
+                default: Console.Error.WriteLine("Usage: --language-experiment [--set minimal|short|duration|all] [--params cs-CZ,cs,multi,en-GB,en-US,omit] [--max-requests N] [--pause-ms N] [--corpus DIR] [--key-from-env] [--send]\nNo API key belongs on the command line: it is typed into a hidden prompt (or read from NVIDIA_API_KEY with --key-from-env)."); return 1; }
         }
+        // The minimal set compares exactly what matters first: the Czech request, the wrong-language request and no parameter.
+        if (set == "minimal" && !paramsGiven) paramsCsv = "cs-CZ,en-GB,omit";
         var locales = ParseParams(paramsCsv); var audio = LoadCorpus(corpusRoot, set);
         var plan = Plan(audio, locales, max, out var truncated);
         Console.WriteLine($"Language experiment, set '{set}': {audio.Count} audio files x {locales.Length} language variants ({string.Join(", ", locales.Select(Label))}) = {audio.Count * locales.Length} requests" + (truncated ? $", limited to {plan.Count} by --max-requests" : ""));
         foreach (var a in audio) Console.WriteLine($"  {a.Id,-10} {a.Seconds,6:F1} s  sha256 {a.Sha256[..12]}…");
         if (!send)
         {
-            Console.WriteLine("\nDRY RUN: nothing was sent and no key was read. To send these PUBLIC FLEURS recordings to NVIDIA with your key (counts against your NVIDIA account limits):");
-            Console.WriteLine("  $k = Read-Host 'NVIDIA API key' -AsSecureString; $env:NVIDIA_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($k))");
+            Console.WriteLine("\nDRY RUN: nothing was sent and no key was read. To send these PUBLIC FLEURS recordings to NVIDIA with your key (counts against your NVIDIA account limits), run:");
             Console.WriteLine($"  .\\JLVoice.NvidiaProbe.exe --language-experiment --set {set} --send");
-            Console.WriteLine("  Remove-Item Env:NVIDIA_API_KEY");
+            Console.WriteLine("The key is typed into a hidden prompt; it is never an argument, an environment variable or a file.");
             return 0;
         }
-        var key = Environment.GetEnvironmentVariable("NVIDIA_API_KEY");
-        if (!NvidiaSpeechClient.ValidKey(key)) { Console.Error.WriteLine("NVIDIA_API_KEY is not set or has an invalid format. Nothing was sent."); return 1; }
-        Console.WriteLine("\nSending public FLEURS audio to the NVIDIA endpoint. Key stays in memory and is not written anywhere. Ctrl+C cancels.");
+        string? key;
+        if (keyFromEnv) key = Environment.GetEnvironmentVariable("NVIDIA_API_KEY");
+        else
+        {
+            if (Console.IsInputRedirected) { Console.Error.WriteLine("Use an interactive console for the hidden key prompt (or --key-from-env). Nothing was sent."); return 1; }
+            Console.Write("NVIDIA API key (input hidden, Escape cancels): ");
+            try { key = Program.ReadKey(); } catch (Exception error) when (error is OperationCanceledException or InvalidDataException) { Console.Error.WriteLine("Cancelled or invalid key. Nothing was sent."); return 1; }
+        }
+        if (!NvidiaSpeechClient.ValidKey(key)) { Console.Error.WriteLine("The API key is missing or has an invalid format. Nothing was sent."); return 1; }
+        Console.WriteLine("\nSending public FLEURS audio to the NVIDIA endpoint. Key stays in this process's memory only, is not written anywhere, and disappears when the program exits. Ctrl+C cancels.");
         using var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false };
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         using var cancel = new CancellationTokenSource(); Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancel.Cancel(); };
@@ -231,6 +250,26 @@ internal static class LanguageExperiment
         Require(locales.Length == 6 && locales[^1] is null, "variant parsing (omit = no field)");
         try { ParseParams("fr-FR"); Require(false, "unknown language value accepted"); } catch (ArgumentException) { }
         var plan = Plan([cs, en], locales, 100, out var truncated);
+        var corpusDir = Path.Combine(Path.GetTempPath(), "jlvoice-minimal-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(corpusDir);
+        try
+        {
+            var sampleRows = new List<object>();
+            foreach (var (id, lang) in new[] { ("cs-1578", "cs"), ("cs-1652", "cs"), ("en-1554", "en"), ("en-1624", "en") })
+            {
+                var bytes = new byte[16044]; bytes[100] = (byte)id.Length; File.WriteAllBytes(Path.Combine(corpusDir, id + ".wav"), bytes);
+                sampleRows.Add(new { id, language = lang, audio = id + ".wav", reference = "x", audio_sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(), tier = "short" });
+            }
+            sampleRows.Add(new { id = "cs-d5", language = "cs", audio = "cs-1578.wav", reference = "x", audio_sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(corpusDir, "cs-1578.wav")))).ToLowerInvariant(), tier = "duration" });
+            File.WriteAllText(Path.Combine(corpusDir, "corpus.json"), JsonSerializer.Serialize(new { samples = sampleRows }));
+            var minimal = LoadCorpus(corpusDir, "minimal");
+            Require(minimal.Select(a => a.Id).SequenceEqual(["cs-1652", "en-1554"]), "minimal set = one Czech and one English clip (the ones already run by the owner)");
+            var minimalPlan = Plan(minimal, ParseParams("cs-CZ,en-GB,omit"), 100, out _);
+            Require(minimalPlan.Count == 6, "minimal experiment = 2 clips x 3 variants = 6 requests");
+            Require(LoadCorpus(corpusDir, "short").Count == 4 && LoadCorpus(corpusDir, "duration").Count == 1, "set selection by tier");
+            File.WriteAllBytes(Path.Combine(corpusDir, "cs-1578.wav"), new byte[16044]);
+            try { LoadCorpus(corpusDir, "all"); Require(false, "tampered fixture accepted"); } catch (InvalidDataException) { }
+        }
+        finally { Directory.Delete(corpusDir, true); }
         Require(plan.Count == 12 && !truncated && plan.Take(6).All(p => p.Audio == cs), "plan = every audio x every variant, identical audio per variant");
         Require(Plan([cs, en], locales, 5, out var cut).Count == 5 && cut, "max-requests cap");
 

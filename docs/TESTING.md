@@ -107,6 +107,8 @@ Owner test: compare Last transcript with inserted Notepad text exactly, repeat w
 
 ### Sprint G — settings and build identity (manual verification)
 
+The step-by-step checklist (build identity, fresh start, settings migration, simulated write failures, draft/active, second instance, diagnostics) is [SPRINT-G-ACCEPTANCE.md](SPRINT-G-ACCEPTANCE.md). The summary below is kept for context.
+
 Automated: CoreChecks (default English, preserved saved language/model, atomic save with `.bak`, refused/blocked writes leave `settings.json` byte-identical, invalid files preserved as `settings.invalid-*.json` with the offending field named, build-identity parsing, second-instance message) and the WPF review (rejected save explained next to the Save button, draft versus active, discard, successful-save confirmation, default English). Hosted CI proves none of the Windows behaviour below on a real desktop.
 
 On a Windows 11 PC, with an unpacked **new** ZIP:

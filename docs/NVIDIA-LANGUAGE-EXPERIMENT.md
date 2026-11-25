@@ -27,33 +27,41 @@ The report states the finding in words, but "different output" only proves influ
 
 Public FLEURS dev read speech (CC-BY-4.0, pinned revision in `public-corpus/corpus.json`), no owner recordings:
 
-- `short` (default): the three shortest Czech and three shortest English clips (about 3–5 s, the same six used by the earlier CLI probe).
-- `duration`: concatenations of the selected clips (0.4 s of digital silence between them) targeting about 5, 15, 30, 45 and 60 s for Czech and English; the real length is recorded in the report (the 5 s sample is about 6–7 s because FLEURS clips are at least 3 s).
-- `all`: both.
+- `minimal` (**recommended first run**): one Czech clip (`cs-1652`, "Hlavním náboženstvím Moldavska je ortodoxní křesťanství.") and one English clip (`en-1554`) — the two clips the owner already ran through the CLI probe, so earlier results are directly comparable — with three variants: `cs-CZ`, `en-GB` (deliberately wrong for Czech speech) and the field omitted. **6 requests.**
+- `short`: the three shortest Czech and English clips (about 3–5 s) x six variants (`cs-CZ`, `cs`, `multi`, `en-GB`, `en-US`, omitted) = 36 requests.
+- `duration`: concatenations of the selected clips (0.4 s digital silence between them) of about 6.9 / 15.4 / 29.9 / 45.2 / 61.0 s (Czech) and 7.3 / 15.5 / 33.0 / 47.0 / 62.1 s (English), six variants = 60 requests. The "5 s" sample is about 7 s because FLEURS clips are at least 3 s.
+- `all`: `short` + `duration` = 96 requests.
 
-Each audio file is sent once per language variant (`cs-CZ`, `cs`, `multi`, `en-GB`, `en-US`, and the field omitted), sequentially with a 1.5 s pause, no retries. `short` = 36 requests, `duration` = 60, `all` = 96. Whether the endpoint accepts 45–60 s requests is also an experiment result (the hosted demo page is said to limit clips to 5 minutes; not verified).
+Requests are sequential with a 1.5 s pause and no retries. Whether the endpoint accepts 45–60 s requests is also an experiment result (a hosted demo page is said to limit clips to 5 minutes; not verified).
+
+Reading the minimal result: if `cs-CZ`, `en-GB` and the omitted field give the **same** text on both clips, the field is not used for these inputs; if the Czech clip changes under `en-GB`, the field influences decoding (not necessarily that it is enforced). The Czech clip was transcribed perfectly in the owner's earlier run, so a degradation under `en-GB` would be visible.
 
 ## Run it (Windows, owner's key)
 
-The command prints the plan and sends nothing unless `--send` is given. The key is read only from the `NVIDIA_API_KEY` environment variable of that PowerShell session; it is never printed, written to the report, put on the command line or stored.
+Nothing is sent unless `--send` is given. With `--send` the key is typed into a **hidden console prompt** inside the program (input is not echoed, Escape cancels). It is not a command-line argument, not an environment variable and not a file.
 
 ```powershell
-# 1. Dry run (no key, nothing sent): shows audio files, hashes and the exact number of requests
-.\JLVoice.NvidiaProbe.exe --language-experiment --set short
+# 1. Dry run (no key, nothing sent): audio files, hashes and the exact number of requests
+.\JLVoice.NvidiaProbe.exe --language-experiment --set minimal
 
-# 2. Real run, short clips first (36 requests; counts against your NVIDIA account limits)
-$k = Read-Host 'NVIDIA API key' -AsSecureString
-$env:NVIDIA_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($k))
-.\JLVoice.NvidiaProbe.exe --language-experiment --set short --send
-Remove-Item Env:NVIDIA_API_KEY
+# 2. Real run: 6 requests, counts against your NVIDIA account limits
+.\JLVoice.NvidiaProbe.exe --language-experiment --set minimal --send
 
-# 3. Optional: duration samples (60 requests), re-using the same key setup
-.\JLVoice.NvidiaProbe.exe --language-experiment --set duration --send
+# 3. Only if the minimal result justifies it
+.\JLVoice.NvidiaProbe.exe --language-experiment --set short --send       # 36 requests
+.\JLVoice.NvidiaProbe.exe --language-experiment --set duration --send    # 60 requests
 ```
 
-Useful limits: `--max-requests N` (default 100, hard cap 200), `--params cs-CZ,omit` (subset), `--pause-ms 3000`. The run stops at once on HTTP 401, 403 or 429 (no retry, no further credits) and after three consecutive network failures. A partial run is marked `complete: false`.
+Useful limits: `--max-requests N` (default 100, hard cap 200), `--params cs-CZ,omit`, `--pause-ms 3000`. The run stops at once on HTTP 401, 403 or 429 (no retry, no more credits) and after three consecutive network failures; a partial run is marked `complete: false`. For scripted use only, `--key-from-env` reads `NVIDIA_API_KEY` instead (see below for why the prompt is preferred).
 
-The result is `nvidia-language-experiment-<utc>-<id>.json` beside the executable. It contains public reference texts, transcripts, HTTP statuses, WER/CER, request times, extra response fields and the analysis, never the key. Review it before sharing: it contains only public FLEURS text.
+### Key handling, honestly
+
+- The key is held as a .NET string for the lifetime of the process. .NET strings are immutable and cannot be zeroed, so **memory is not scrubbed**; the key disappears when the program exits (a crash dump or the Windows page file could in principle contain it, as for any program that handles a credential).
+- The hidden prompt avoids the two avoidable leaks of the earlier idea: no environment variable (visible to child processes and `Get-ChildItem Env:`) and no `SecureString` → `BSTR` conversion. If you ever script the `--key-from-env` route, `Marshal.SecureStringToBSTR` allocates unmanaged memory that **must** be released with `Marshal.ZeroFreeBSTR`, and the converted string again becomes an ordinary managed string — so it adds nothing over the prompt.
+- The key goes only into the `Authorization` header of HTTPS requests to the fixed endpoint (redirects and cookies disabled). The report and console output never contain it (the report writer refuses to write if it finds the key; the self-test checks this, and that rejection/401 responses never echo it).
+- Do not paste the key into chat, an issue, a screenshot or a report. Rotate it in your NVIDIA account if you suspect exposure.
+
+The result is `nvidia-language-experiment-<utc>-<id>.json` beside the executable: public reference texts, transcripts, HTTP statuses, WER/CER, request times, extra response fields and the analysis, never the key. It contains only public FLEURS text, so it is safe to share.
 
 ## Reading the report
 
