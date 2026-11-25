@@ -60,8 +60,9 @@ internal static class Program
     private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = new UTF8Encoding(false);
-        if (args.SequenceEqual(new[] { "--self-test" })) { await SelfTest(); return 0; }
-        if (args.Length != 0) { Console.Error.WriteLine("Run without arguments; no API key belongs on the command line."); return 1; }
+        if (args.SequenceEqual(new[] { "--self-test" })) { await SelfTest(); await LanguageExperiment.SelfTestAsync(); return 0; }
+        if (args.Length > 0 && args[0] == "--language-experiment") return await LanguageExperiment.MainAsync(args[1..]);
+        if (args.Length != 0) { Console.Error.WriteLine("Run without arguments (six-clip probe) or with --language-experiment; no API key belongs on the command line."); return 1; }
         Console.WriteLine("JL Voice — NVIDIA cloud quality probe / test kvality");
         Console.WriteLine("Odešle šest přiložených veřejných CZ/EN nahrávek do NVIDIA. Soukromé audio nečte.");
         Console.WriteLine("API klíč je jen v paměti tohoto procesu; neukládá se do výsledků ani prostředí.");
@@ -78,6 +79,8 @@ internal static class Program
             using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(corpusRoot, "corpus.json")));
             foreach (var sample in corpus.RootElement.GetProperty("samples").EnumerateArray())
             {
+                // The shared kit corpus also holds duration/extra clips for the language experiment; this probe uses the original six.
+                if (sample.TryGetProperty("tier", out var tier) && tier.GetString() != "short") continue;
                 var name = sample.GetProperty("audio").GetString()!;
                 if (Path.GetFileName(name) != name) throw new InvalidDataException("Invalid sample name.");
                 var wav = await File.ReadAllBytesAsync(Path.Combine(corpusRoot, name));
@@ -115,7 +118,7 @@ internal static class Program
         return complete ? 0 : 1;
     }
 
-    private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    internal sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => Task.FromResult(respond(request));
     }

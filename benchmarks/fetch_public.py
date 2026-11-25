@@ -39,9 +39,12 @@ def main():
     parser.add_argument('--output', required=True, type=pathlib.Path)
     parser.add_argument('--count', type=int, default=3, help='clips per language (shortest unique prompts >= 3 s)')
     parser.add_argument('--controls', action='store_true', help='add synthetic silence/noise clips with empty references')
+    parser.add_argument('--durations', default='', help='comma-separated target seconds (for example 5,15,30,45,60): concatenations of the selected clips; needs --count >= 16 for 60 s')
     parser.add_argument('--long', action='store_true', help='add ~20 s and up to 85 s concatenations of the selected clips per language')
     args = parser.parse_args()
     if not 1 <= args.count <= 40: parser.error('--count must be 1..40')
+    targets = [float(x) for x in args.durations.split(',') if x.strip()]
+    if any(not 3 <= t <= 85 for t in targets): parser.error('--durations values must be 3..85 seconds')
     args.output.mkdir(parents=True, exist_ok=True)
     rows = []
     for language, config in [('cs','cs_cz'), ('en','en_us')]:
@@ -62,10 +65,35 @@ def main():
                 row = wanted.pop(name); source = archive.extractfile(member).read(); data = pcm16(source)
                 path = args.output/(language+'-'+name); path.write_bytes(data)
                 rows.append(dict(id=language+'-'+row[0], language=language, audio=path.name, reference=row[2],
-                    audio_sha256=hashlib.sha256(data).hexdigest(), source_sha256=hashlib.sha256(source).hexdigest(), source_file=name))
+                    audio_sha256=hashlib.sha256(data).hexdigest(), source_sha256=hashlib.sha256(source).hexdigest(), source_file=name,
+                    tier='short' if row in selected[:3] else 'extra'))
                 print('Fetched public fixture', language, name, flush=True)
                 if not wanted: break
         if wanted: raise ValueError('Selected source recordings missing')
+        if targets:
+            # Duration set for cloud/latency experiments: the selected clips in selection order, joined with 0.4 s digital
+            # silence until the target is reached (within about +/- 4 s, actual length recorded). Reference = joined references.
+            order = {f'{language}-{r[0]}': i for i, r in enumerate(selected)}
+            clips = sorted((r for r in rows if r['language'] == language and r.get('tier') in ('short', 'extra')), key=lambda r: order[r['id']])
+            gap = bytes(int(16000 * 0.4) * 2)
+            for target in targets:
+                pcm, refs, seconds = bytearray(), [], 0.0
+                for clip in clips:
+                    with wave.open(str(args.output / clip['audio'])) as f: frames = f.readframes(f.getnframes())
+                    length = len(frames) / 32000
+                    extra = 0.4 if refs else 0.0
+                    if refs and seconds + extra + length > target + 4.0: break
+                    if refs: pcm.extend(gap)
+                    pcm.extend(frames); seconds += extra + length; refs.append(clip['reference'])
+                    if seconds >= target - 1.0: break
+                if seconds < target - 5.0: raise ValueError(f'Not enough clips for a {target:g} s sample; raise --count')
+                output = io.BytesIO()
+                with wave.open(output, 'wb') as wav:
+                    wav.setnchannels(1); wav.setsampwidth(2); wav.setframerate(16000); wav.writeframes(pcm)
+                data = output.getvalue(); audio = f'{language}-d{target:g}.wav'; (args.output / audio).write_bytes(data)
+                rows.append(dict(id=f'{language}-d{target:g}', language=language, group=f'{language}-dur', tier='duration', audio=audio,
+                    reference=' '.join(refs), seconds=round(seconds, 2), parts=len(refs), target_seconds=target,
+                    audio_sha256=hashlib.sha256(data).hexdigest(), source_file='concatenation of selected clips'))
         if args.long:
             # Same speech as the short clips, joined in selection order with 0.4 s digital silence,
             # to check omissions/repetitions on longer dictation. Reference = joined references.

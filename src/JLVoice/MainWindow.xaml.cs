@@ -159,16 +159,16 @@ public partial class MainWindow : Window
     private static string? MicrophoneName(int index)
     {
         try { return index >= 0 && index < WaveInEvent.DeviceCount ? WaveInEvent.GetCapabilities(index).ProductName : null; }
-        catch (Exception error) when (error is MmException or InvalidOperationException) { return null; }
+        catch (Exception) { return null; } // Device enumeration failures (driver/MME errors) mean "name unknown", not a crash.
     }
-    private static string ModelLabel(string file) => file switch
+    private static string ModelDisplayName(string file) => file switch
     {
         "ggml-base-q5_1.bin" => "Base · Q5", "ggml-base-q8_0.bin" => "Base · Q8", "ggml-small-q5_1.bin" => "Small · Q5",
         "ggml-large-v3-turbo-q5_0.bin" => "Large v3 Turbo · Q5 (test)", _ => file
     };
     // What the app is ACTUALLY using for the next recording (the saved, active configuration — never the draft).
     private string ActiveSummary() =>
-        (settings.Provider == "nvidia" ? "NVIDIA cloud · Parakeet TDT" : "Offline · " + ModelLabel(settings.Model)) + " · " +
+        (settings.Provider == "nvidia" ? "NVIDIA cloud · Parakeet TDT" : "Offline · " + ModelDisplayName(settings.Model)) + " · " +
         (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " +
         T("mikrofon: ", "microphone: ") + (MicrophoneName(settings.Microphone) ?? T("nedostupný", "unavailable"));
     private void SetSaveFeedback(string? text)
