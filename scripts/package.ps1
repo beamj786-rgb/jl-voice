@@ -43,7 +43,7 @@ foreach ($includedModel in $includedModels) {
 }
 Copy-Item "$root/models/manifest.json" "$output/models/manifest.json"
 # Tell the app which bundled candidate this package contains.
-@{ Model=$Model; Language='auto'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
+@{ Model=$Model; Language='en'; Threads=2; Microphone=0; PushToTalk=$true; Key=20 } | ConvertTo-Json | Set-Content "$output/settings.json" -Encoding utf8NoBOM
 Copy-Item "$vendor/LICENSE" "$output/licenses/whisper.cpp-MIT.txt"
 Copy-Item "$root/THIRD_PARTY_NOTICES.md" "$output/licenses/"
 Copy-Item "$root/LICENSE" "$output/licenses/LICENSE"

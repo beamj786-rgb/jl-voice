@@ -11,7 +11,7 @@ internal static class AsrEngine
     internal const string VadModel = "ggml-silero-v6.2.0.bin";
     // Verdict: "ok" (insert), "no_speech" (insert nothing), "suspicious" (show for manual review, never auto-insert).
     internal sealed record Result(string Text, string Model, string Language, double AudioSeconds, double? InferenceMs, double WorkerWallMs,
-        string Verdict = "ok", IReadOnlyList<string>? Reasons = null, double? SpeechSeconds = null)
+        string Verdict = "ok", IReadOnlyList<string>? Reasons = null, double? SpeechSeconds = null, string Backend = "offline", string? Detected = null)
     {
         internal bool Insertable => Verdict == "ok" && !string.IsNullOrWhiteSpace(Text);
     }
@@ -32,9 +32,10 @@ internal static class AsrEngine
         // Defense in depth: an empty transcript is never inserted, whatever the worker said.
         if (text.Length == 0) verdict = "no_speech";
         if (verdict == "no_speech") text = "";
-        var language = root.TryGetProperty("detected_language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : requestedLanguage;
-        return new Result(text, modelName, language, Number(root, "audio_seconds") ?? throw new InvalidDataException("Speech engine did not report audio length."),
-            Number(root, "inference_ms"), wallMs, verdict, reasons, Number(root, "vad_speech_seconds"));
+        // Language is what was REQUESTED; Detected is what the engine reported (null when it did not run).
+        var detected = root.TryGetProperty("detected_language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null;
+        return new Result(text, modelName, requestedLanguage, Number(root, "audio_seconds") ?? throw new InvalidDataException("Speech engine did not report audio length."),
+            Number(root, "inference_ms"), wallMs, verdict, reasons, Number(root, "vad_speech_seconds"), "offline", detected);
     }
     private static Process StartWorker(ProcessStartInfo start)
     {
@@ -85,7 +86,7 @@ internal static class AsrEngine
             var errorOutput = await errors; // Parse numeric metrics only; never persist raw stderr.
             if (process.ExitCode != 0) throw new IOException($"Speech engine exited with code {process.ExitCode}.");
             var result = ParseWorkerOutput(stdout, errorOutput, settings.Model, settings.Language, wall.Elapsed.TotalMilliseconds);
-            Diagnostics.Mark("recognition_completed", new { model = result.Model, language = result.Language, audio_seconds = result.AudioSeconds, inference_ms = result.InferenceMs,
+            Diagnostics.Mark("recognition_completed", new { backend = result.Backend, model = result.Model, requested_language = result.Language, detected_language = result.Detected, audio_seconds = result.AudioSeconds, inference_ms = result.InferenceMs,
                 worker_wall_ms = result.WorkerWallMs, verdict = result.Verdict, reasons = result.Reasons, speech_seconds = result.SpeechSeconds });
             return result;
         }

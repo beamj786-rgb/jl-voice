@@ -71,9 +71,13 @@ Check(timingText.Contains("+5 ms") && timingText.Contains("+90 ms") && timingTex
 static string Metrics(string verdict, string extra = "") => "noise\nJLVOICE_METRICS {\"load_ms\":1,\"inference_ms\":" + (verdict == "no_speech" ? "null" : "5") +
     ",\"audio_seconds\":3.5,\"detected_language\":" + (verdict == "no_speech" ? "null" : "\"cs\"") + ",\"vad_speech_seconds\":2.1,\"verdict\":\"" + verdict + "\",\"reasons\":[" + extra + "]}\r\n";
 var okResult = AsrEngine.ParseWorkerOutput("Dobrý den.\n", Metrics("ok"), "m.bin", "cs", 10);
-Check(okResult.Insertable && okResult.Text == "Dobrý den." && okResult.Language == "cs" && okResult.InferenceMs == 5 && okResult.SpeechSeconds == 2.1, "ok worker result with text is insertable");
+Check(okResult.Insertable && okResult.Text == "Dobrý den." && okResult.Language == "cs" && okResult.Detected == "cs" && okResult.Backend == "offline" && okResult.InferenceMs == 5 && okResult.SpeechSeconds == 2.1, "ok worker result with text is insertable");
 var silentResult = AsrEngine.ParseWorkerOutput("\n", Metrics("no_speech", "\"vad_no_speech\""), "m.bin", "cs", 10);
 Check(!silentResult.Insertable && silentResult.Text == "" && silentResult.InferenceMs is null && silentResult.Language == "cs" && silentResult.Reasons!.SequenceEqual(new[] { "vad_no_speech" }), "no-speech result inserts nothing and keeps unknown inference null");
+var autoRequested = AsrEngine.ParseWorkerOutput("Ahoj.\n", Metrics("ok"), "m.bin", "auto", 10);
+Check(autoRequested.Language == "auto" && autoRequested.Detected == "cs", "requested language (auto) and engine-detected language (cs) are reported separately");
+Check(silentResult.Detected is null, "no engine run means no detected language (unknown, not the requested one)");
+Check(new AsrEngine.Result("x", "NVIDIA", "cs", 1, null, 1, Backend: "nvidia").Detected is null, "cloud results do not claim a detected language");
 Check(!AsrEngine.ParseWorkerOutput("Titulky vytvořil JohnyX.", Metrics("no_speech"), "m.bin", "cs", 1).Insertable, "text under a no_speech verdict is discarded");
 var loop = AsrEngine.ParseWorkerOutput("vytvořil vytvořil vytvořil", Metrics("suspicious", "\"word_loop\""), "m.bin", "cs", 1);
 Check(!loop.Insertable && loop.Text.Length > 0 && loop.Reasons!.Contains("word_loop"), "suspicious result is kept for review but not insertable");
@@ -85,6 +89,93 @@ foreach (var bad in new[] { Metrics("maybe"), "no metrics here" })
 }
 Check(true, "unknown verdicts and missing metrics are rejected");
 Check(new AsrEngine.Result("Cloud text", "NVIDIA", "cs", 2, null, 100).Insertable, "cloud results keep the existing insert behavior (verdict ok by default)");
+
+// ---- Sprint G: settings integrity, defaults, atomic save, build identity ----
+Check(new Settings().Language == "en" && Settings.DefaultLanguage == "en", "fresh settings default to English dictation");
+var packageScript = new[] { "scripts/package.ps1", "../scripts/package.ps1", "../../scripts/package.ps1" }.FirstOrDefault(File.Exists);
+if (packageScript is not null) Check(File.ReadAllText(packageScript).Contains("Language='en'"), "the distributed settings.json template sets English");
+var sgDir = Path.Combine(Path.GetTempPath(), "jlvoice-settings-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(sgDir);
+try
+{
+    var sgPath = Path.Combine(sgDir, "settings.json");
+    var missing = Settings.Load(sgPath);
+    Check(missing.Source == Settings.LoadSource.DefaultsNoFile && missing.Settings.Language == "en" && missing.Problem is null, "no settings.json yields defaults without a problem");
+    // The distributed template, and upgrades keep an explicit saved language.
+    File.WriteAllText(sgPath, "{\"Model\":\"ggml-base-q5_1.bin\",\"Language\":\"en\",\"Threads\":2,\"Microphone\":0,\"PushToTalk\":true,\"Key\":20}");
+    Check(Settings.Load(sgPath).Settings.Language == "en", "distributed settings.json loads with English");
+    foreach (var language in new[] { "cs", "auto", "en" })
+    {
+        File.WriteAllText(sgPath, "{\"Language\":\"" + language + "\",\"Model\":\"ggml-small-q5_1.bin\",\"Key\":20}");
+        var kept = Settings.Load(sgPath);
+        Check(kept.Source == Settings.LoadSource.File && kept.Settings.Language == language && kept.Settings.Model == "ggml-small-q5_1.bin", $"existing explicit language '{language}' and model survive loading");
+    }
+    // Save/Load round trip, atomic replace and the .bak safety copy.
+    var first = new Settings { Language = "cs", Model = "ggml-small-q5_1.bin", HoldThresholdMs = 300 };
+    first.Save(sgPath);
+    Check(Settings.Load(sgPath).Settings == first && !File.Exists(sgPath + ".new"), "saved settings round-trip exactly and leave no temporary file");
+    var second = first with { Language = "auto", Model = "ggml-base-q5_1.bin" };
+    second.Save(sgPath);
+    Check(Settings.Load(sgPath).Settings == second && Settings.Load(sgPath + ".bak").Settings == first, "a second save keeps the previous file as settings.json.bak");
+    // A rejected save must leave the existing file byte-for-byte intact.
+    var before = File.ReadAllBytes(sgPath);
+    try { (second with { Language = "xx" }).Save(sgPath); throw new Exception("Invalid settings were saved"); }
+    catch (InvalidDataException error) { Check(error.Message.Contains("Language"), "a rejected save names the offending field"); }
+    Check(File.ReadAllBytes(sgPath).SequenceEqual(before), "a rejected save leaves settings.json untouched");
+    // An interrupted/failed write (temporary path unusable) must not damage the file and must surface an error.
+    Directory.CreateDirectory(sgPath + ".new");
+    try { (second with { Language = "cs" }).Save(sgPath); throw new Exception("Blocked write reported success"); }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+    Check(File.ReadAllBytes(sgPath).SequenceEqual(before), "a write that cannot complete leaves settings.json untouched and throws");
+    Directory.Delete(sgPath + ".new");
+    // Garbage left by an earlier crash is ignored on load and replaced by the next save.
+    File.WriteAllText(sgPath + ".new", "{ half written");
+    Check(Settings.Load(sgPath).Settings == second, "a leftover partial .new file does not affect loading");
+    second.Save(sgPath);
+    Check(!File.Exists(sgPath + ".new"), "the next save replaces a stale temporary file");
+    // Invalid content: preserved aside, never silently overwritten, field named, backup restored when valid.
+    File.WriteAllText(sgPath, "{ \"Language\": \"cs\", \"Model\": \"future-model.bin\" }");
+    var restored = Settings.Load(sgPath);
+    Check(restored.Source == Settings.LoadSource.RestoredFromBackup && restored.Problem!.Contains("Model") && restored.InvalidFileBackup is { } && File.Exists(Path.Combine(sgDir, restored.InvalidFileBackup!)), "invalid settings are preserved aside, the field is named and the .bak is restored");
+    File.Delete(sgPath + ".bak");
+    File.WriteAllText(sgPath, "{ truncated");
+    var defaults = Settings.Load(sgPath);
+    Check(defaults.Source == Settings.LoadSource.DefaultsInvalidFile && defaults.Settings.Language == "en" && defaults.Problem is not null && defaults.InvalidFileBackup is { }, "a corrupt file without backup falls back to defaults and is preserved aside");
+    Check(File.ReadAllText(Path.Combine(sgDir, defaults.InvalidFileBackup!)) == "{ truncated", "the preserved copy is the original bytes");
+    new Settings().Save(sgPath);
+    Check(Directory.GetFiles(sgDir, "settings.invalid-*.json").Length >= 2, "saving after a bad load does not delete the preserved invalid files");
+    foreach (var bad in new[] { "{ \"Provider\": \"nvidia\", \"Language\": \"auto\" }", "{ \"Threads\": 8 }", "not json", "[]", "" })
+    {
+        File.WriteAllText(sgPath, bad);
+        Check(Settings.Load(sgPath).Problem is not null, "invalid settings content is reported, not accepted: " + (bad.Length == 0 ? "(empty)" : bad));
+    }
+}
+finally { Directory.Delete(sgDir, true); }
+var buildDir = Path.Combine(Path.GetTempPath(), "jlvoice-build-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(buildDir);
+try
+{
+    var sourceRun = BuildInfo.Read(buildDir, "0.1.0");
+    Check(!sourceRun.PackageInfoPresent && sourceRun.Commit is null && sourceRun.Describe().Contains("not a packaged build") && sourceRun.ShortCommit == "n/a", "a build without BUILD-INFO.json says so instead of inventing a commit");
+    File.WriteAllText(Path.Combine(buildDir, "BUILD-INFO.json"), "{\"source_commit\":\"ad4144ff49a0f8a0ab9df2ef05f7b28b91b5f72a\",\"built_utc\":\"2026-11-23T21:34:24.1234567Z\",\"model\":\"ggml-base-q5_1.bin\"}");
+    var packaged = BuildInfo.Read(buildDir, "0.1.0");
+    Check(packaged.PackageInfoPresent && packaged.Commit == "ad4144ff49a0f8a0ab9df2ef05f7b28b91b5f72a" && packaged.ShortCommit == "ad4144ff" && packaged.PackagedModel == "ggml-base-q5_1.bin" &&
+          packaged.Describe() == "v0.1.0 · ad4144ff · 2026-11-23 21:34 UTC", "packaged build identity reports version, commit and build time");
+    foreach (var bad in new[] { "{\"source_commit\":\"../etc/passwd\"}", "{\"source_commit\":\"zzzzzzzz\"}", "{ not json", "{\"source_commit\":123}" })
+    {
+        File.WriteAllText(Path.Combine(buildDir, "BUILD-INFO.json"), bad);
+        Check(!BuildInfo.Read(buildDir, "0.1.0").PackageInfoPresent, "an invalid commit or malformed BUILD-INFO.json is not trusted: " + bad);
+    }
+    File.WriteAllText(Path.Combine(buildDir, "BUILD-INFO.json"), "{\"source_commit\":\"ad4144ff49a0f8a0ab9df2ef05f7b28b91b5f72a\",\"padding\":\"" + new string('x', 70000) + "\"}");
+    Check(!BuildInfo.Read(buildDir, "0.1.0").PackageInfoPresent, "an oversized BUILD-INFO.json is ignored");
+    var runningBuild = new BuildIdentity("?", "1111111122222222333333334444444455555555", null, null, true);
+    var thisBuild = new BuildIdentity("0.1.0", "ad4144ff49a0f8a0ab9df2ef05f7b28b91b5f72a", null, null, true);
+    var conflict = InstanceConflict.Describe([new InstanceConflict.Other(10, @"C:\Old\JLVoice", runningBuild), new InstanceConflict.Other(11, null, null)], thisBuild, @"C:\New\JLVoice");
+    Check(conflict.Contains(@"C:\Old\JLVoice") && conflict.Contains("build 11111111") && conflict.Contains("build ad4144ff") && conflict.Contains(@"C:\New\JLVoice") && conflict.Contains("Ukončit JL Voice") && conflict.Contains("Exit JL Voice") && !conflict.Contains("same build"), "a second launch explains which build is already running and where");
+    Check(InstanceConflict.Describe([new InstanceConflict.Other(10, @"C:\Old", thisBuild)], thisBuild, @"C:\New").Contains("same build"), "a second launch of the same build says so");
+    Check(InstanceConflict.Describe([], thisBuild, null).Contains("unknown"), "an undeterminable running instance is stated as unknown");
+}
+finally { Directory.Delete(buildDir, true); }
 
 var latch = new HoldKeyState();
 Check(latch.Change(true, true) == HoldAction.Start && latch.Change(true, true) == HoldAction.None && latch.Change(false, true) == HoldAction.Stop && latch.Change(false, true) == HoldAction.None, "a hold starts and stops once despite repeat and duplicate release");

@@ -47,14 +47,28 @@ public partial class MainWindow
         RetainAudio.IsChecked = true; replayWav = replayFixture; ReplayButton.IsEnabled = true;
         RetainAudio.IsChecked = false;
         if (replayWav is not null || ReplayButton.IsEnabled || replayFixture.Any(value => value != 0)) issues.Add("Disabling replay retention did not erase the owned buffer.");
+        if (settings.Language != "en" || DictationLanguage.SelectedIndex != 2 || !ActiveConfigText.Text.Contains("English") || !ActiveConfigText.Text.Contains("Offline") || BuildText.Text.Length == 0) issues.Add("A fresh configuration must default to English and show the active configuration and build.");
         Navigate(true); ShortcutKey.SelectedValue = 0x78; PushToTalk.IsChecked = false;
         if (settings.Provider != "offline" || CloudConsent.IsChecked == true || sessionNvidiaKey is not null) issues.Add("Cloud must be off with no credential at review startup.");
+        // A rejected save must be explained on the Settings page itself, must not change the active configuration,
+        // and must keep the draft visibly separate from what is active.
         Provider.SelectedIndex = 1; InvokeButton(SaveButton); await SettleAsync();
         if (settings.Provider != "offline") issues.Add("Cloud activated without consent/key.");
+        if (!Preferences.IsVisible || Overview.IsVisible || SaveFeedback.Visibility != Visibility.Visible || !SaveFeedback.Text.Contains("NEBYLO") || !hasPending || !PendingText.Text.Contains("zatím platí") || !ActiveConfigText.Text.Contains("Offline")) issues.Add("A rejected save was not explained next to the Save button with the active configuration kept visible.");
+        await Capture("save-rejected-visible-in-settings");
+        var holdOriginal = HoldThreshold.Text; HoldThreshold.Text = "abc"; InvokeButton(SaveButton); await SettleAsync();
+        if (SaveFeedback.Visibility != Visibility.Visible || !SaveFeedback.Text.Contains("100–1000") || settings.HoldThresholdMs != 250) issues.Add("A non-numeric hold threshold was not rejected with a visible explanation.");
+        HoldThreshold.Text = holdOriginal;
         DictationLanguage.SelectedIndex = 1; CloudConsent.IsChecked = true;
         NvidiaKey.Password = "FAKE-UI-ONLY-NON-AUTHENTICATING";
         InvokeButton(SaveButton); await SettleAsync();
         if (settings.Provider != "nvidia" || !cloudApproved || Model.IsEnabled || Threads.IsEnabled || !PrivacyText.Text.Contains("NVIDIA")) issues.Add("Cloud settings/provider disclosure did not round-trip.");
+        if (hasPending || SaveFeedback.Visibility == Visibility.Visible || !PendingText.Text.StartsWith("Uloženo. Aktivní: NVIDIA cloud") || !ActiveConfigText.Text.Contains("NVIDIA cloud") || !ActiveConfigText.Text.Contains("Čeština")) issues.Add("A successful save did not clear the error and confirm the active backend.");
+        // Discarding a draft restores controls (including live-previewed theme/language) and the saved state.
+        DictationLanguage.SelectedIndex = 2; Theme.SelectedIndex = 1; Threads.SelectedIndex = 0;
+        if (!hasPending || !PendingText.Text.Contains("NVIDIA cloud")) issues.Add("An edited draft was not distinguished from the active configuration.");
+        DiscardDraft(); await SettleAsync();
+        if (hasPending || DictationLanguage.SelectedIndex != 1 || Theme.SelectedIndex != 0 || Provider.SelectedIndex != 1 || PendingText.Text.Length != 0 || locale != "cs") issues.Add("Discarding a draft did not restore the active configuration.");
         RequireCloudReady();
         foreach (var light in new[] { false, true })
         {

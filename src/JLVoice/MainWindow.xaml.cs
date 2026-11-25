@@ -15,6 +15,8 @@ namespace JLVoice;
 public partial class MainWindow : Window
 {
     private Settings settings;
+    private Settings.LoadSource settingsSource;
+    private bool hasPending;
     private readonly bool reviewMode;
     private bool binding = true, preferencesOpen, busy, closing, cancelRegistered;
     private bool? idleBubbleOverride;
@@ -38,9 +40,13 @@ public partial class MainWindow : Window
     public MainWindow(bool review = false)
     {
         reviewMode = review;
-        try { settings = review ? new() : Settings.Load(); }
-        catch (Exception e) { settings = new(); MessageBox.Show(e.Message, "JL Voice"); }
-        locale = settings.UiLanguage;
+        var loaded = review ? new Settings.LoadResult(new Settings(), Settings.LoadSource.DefaultsNoFile, null, null) : Settings.LoadWithStatus();
+        settings = loaded.Settings; settingsSource = loaded.Source; locale = settings.UiLanguage;
+        if (loaded.Problem is not null)
+            MessageBox.Show((loaded.Source == Settings.LoadSource.RestoredFromBackup
+                ? "settings.json was invalid; the previous settings (settings.json.bak) were restored.\nsettings.json byl neplatný; obnovena předchozí nastavení (settings.json.bak)."
+                : "settings.json was invalid; DEFAULT settings are active.\nsettings.json byl neplatný; platí VÝCHOZÍ nastavení.") +
+                "\n\n" + loaded.Problem + (loaded.InvalidFileBackup is null ? "" : $"\n\nSaved aside / Uloženo bokem: {loaded.InvalidFileBackup}"), "JL Voice");
         InitializeComponent(); Icon = BitmapFrame.Create(new Uri(Path.Combine(AppContext.BaseDirectory, "assets", "brand", "JLVoice.ico")));
         DictationLanguage.ItemsSource = new[] { "", "Čeština", "English" }; DictationLanguage.SelectedIndex = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
         ShortcutKey.SelectedValuePath = nameof(DictationKey.Code);
@@ -84,14 +90,16 @@ public partial class MainWindow : Window
             ConfigureShortcut(); Hide(); bubble.PlaceForWindow(WindowsInput.GetForegroundWindow()); RefreshBubble(); Diagnostics.Mark("ready");
         };
         IsVisibleChanged += (_, _) => RefreshBubble();
-        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) { Hide(); WindowState = WindowState.Normal; } };
+        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) { WindowState = WindowState.Normal; HideConfirmed(); } };
         Closing += OnClosing;
         SystemEvents.UserPreferenceChanged += OnSystemAppearance;
         pendingHold.Tick += PendingHoldTick;
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         languageSelection = DictationLanguage.SelectedIndex; themeSelection = Theme.SelectedIndex;
-        Localize(); binding = false; ApplyTheme(); ReadyStatus(); bubble.SetIdle(BubbleShortcut, locale); PendingText.Text = "";
+        Localize(); binding = false; ApplyTheme(); ReadyStatus(); bubble.SetIdle(BubbleShortcut, locale); PendingText.Text = ""; hasPending = false;
+        if (BuildInfo.Identity.PackageInfoPresent) Title = "JL Voice · " + BuildInfo.Identity.ShortCommit;
+        if (!reviewMode) { Diagnostics.Mark("build", BuildInfo.DiagnosticView()); Diagnostics.Mark("config_active", settings.DiagnosticView(MicrophoneName(settings.Microphone), settingsSource)); }
     }
     private IntPtr WindowHook(IntPtr window, int message, IntPtr w, IntPtr l, ref bool handled)
     {
@@ -142,7 +150,63 @@ public partial class MainWindow : Window
             ? T($"Krátký stisk přepne Caps Lock. Držení od {settings.HoldThresholdMs} ms nahrává; uvolnění spustí přepis.", $"Tap toggles Caps Lock. Hold for {settings.HoldThresholdMs} ms to record; release to transcribe.")
             : T("Přepínání: Ctrl + Alt + klávesa. Při držení stačí samotná klávesa.", "Toggle: Ctrl + Alt + key. Hold mode uses the key alone.");
     }
-    private void MarkPending() { if (!binding) PendingText.Text = T("Neuložené změny", "Unsaved changes"); }
+    private void MarkPending()
+    {
+        if (binding) return;
+        hasPending = true;
+        PendingText.Text = T("Neuložené změny – zatím platí: ", "Unsaved changes – still active: ") + ActiveSummary();
+    }
+    private static string? MicrophoneName(int index)
+    {
+        try { return index >= 0 && index < WaveInEvent.DeviceCount ? WaveInEvent.GetCapabilities(index).ProductName : null; }
+        catch (Exception error) when (error is MmException or InvalidOperationException) { return null; }
+    }
+    private static string ModelLabel(string file) => file switch
+    {
+        "ggml-base-q5_1.bin" => "Base · Q5", "ggml-base-q8_0.bin" => "Base · Q8", "ggml-small-q5_1.bin" => "Small · Q5",
+        "ggml-large-v3-turbo-q5_0.bin" => "Large v3 Turbo · Q5 (test)", _ => file
+    };
+    // What the app is ACTUALLY using for the next recording (the saved, active configuration — never the draft).
+    private string ActiveSummary() =>
+        (settings.Provider == "nvidia" ? "NVIDIA cloud · Parakeet TDT" : "Offline · " + ModelLabel(settings.Model)) + " · " +
+        (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " +
+        T("mikrofon: ", "microphone: ") + (MicrophoneName(settings.Microphone) ?? T("nedostupný", "unavailable"));
+    private void SetSaveFeedback(string? text)
+    {
+        SaveFeedback.Text = text ?? ""; SaveFeedback.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
+    // Leaving the page/window with a draft: the user decides, so a different backend is never used unnoticed.
+    private bool ConfirmLeave()
+    {
+        if (reviewMode || !hasPending) return true;
+        var answer = MessageBox.Show(this,
+            T("Máte neuložené změny nastavení. Dokud je neuložíte, aplikace dál používá:\n", "You have unsaved settings changes. Until saved, the app keeps using:\n") + ActiveSummary() +
+            T("\n\nUložit změny? (Ano = uložit, Ne = zahodit, Zrušit = zůstat v Nastavení)", "\n\nSave changes? (Yes = save, No = discard, Cancel = stay in Settings)"),
+            "JL Voice", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Cancel) return false;
+        if (answer == MessageBoxResult.Yes) { SaveClick(this, new RoutedEventArgs()); return !hasPending; }
+        DiscardDraft(); return true;
+    }
+    // Puts every control (including live-previewed theme and interface language) back to the active settings.
+    private void DiscardDraft()
+    {
+        binding = true;
+        try
+        {
+            languageSelection = settings.Language switch { "cs" => 1, "en" => 2, _ => 0 };
+            themeSelection = settings.Theme switch { "light" => 1, "system" => 2, _ => 0 };
+            UiLanguage.SelectedIndex = settings.UiLanguage == "en" ? 1 : 0;
+            ShortcutKey.SelectedValue = settings.Key; PushToTalk.IsChecked = settings.PushToTalk; IdleBubble.IsChecked = settings.ShowIdleBubble;
+            HoldThreshold.Text = settings.HoldThresholdMs.ToString();
+            Model.SelectedIndex = Math.Max(0, modelFiles.IndexOf(settings.Model)); Threads.SelectedIndex = settings.Threads - 1;
+            Provider.SelectedIndex = settings.Provider == "nvidia" ? 1 : 0; CloudConsent.IsChecked = settings.CloudConsentVersion == 1;
+            RememberCloudKey.IsChecked = settings.RememberNvidiaKey; NvidiaKey.Clear();
+            Microphone.SelectedIndex = Microphone.Items.Count == 0 ? -1 : Math.Clamp(settings.Microphone, 0, Microphone.Items.Count - 1);
+            Localize(); ApplyTheme(); UpdateCloudControls();
+        }
+        finally { binding = false; }
+        hasPending = false; PendingText.Text = ""; SetSaveFeedback(null);
+    }
     private void Localize()
     {
         locale = UiLanguage.SelectedIndex == 1 ? "en" : "cs";
@@ -194,6 +258,14 @@ public partial class MainWindow : Window
     private void UpdateSummaries()
     {
         ShortcutText.Text = Shortcut;
+        ActiveConfigText.Text = T("Aktivní konfigurace: ", "Active configuration: ") + ActiveSummary() + "\n" + settingsSource switch
+        {
+            Settings.LoadSource.File => T("Zdroj: settings.json", "Source: settings.json"),
+            Settings.LoadSource.DefaultsNoFile => T("Zdroj: výchozí hodnoty (settings.json zatím neexistuje)", "Source: built-in defaults (no settings.json yet)"),
+            Settings.LoadSource.RestoredFromBackup => T("Zdroj: záloha settings.json.bak (settings.json byl neplatný)", "Source: settings.json.bak (settings.json was invalid)"),
+            _ => T("Zdroj: VÝCHOZÍ hodnoty (settings.json byl neplatný; uložen bokem jako settings.invalid-*.json)", "Source: DEFAULTS (settings.json was invalid; saved aside as settings.invalid-*.json)")
+        };
+        BuildText.Text = "Build: " + BuildInfo.Identity.Describe();
         LanguageSummary.Text = T("Jazyk: ", "Language: ") + (settings.Language switch { "cs" => "Čeština", "en" => "English", _ => T("Automaticky", "Automatic") }) + " · " + (settings.Provider == "nvidia" ? "NVIDIA cloud" : settings.Model);
         PrivacyText.Text = settings.Provider == "nvidia" ? T("Cloud zapnutý: nahraný zvuk se odesílá do NVIDIA.", "Cloud enabled: recorded audio is sent to NVIDIA.")
             : T("Offline: zvuk se zpracovává pouze na tomto počítači.", "Offline: audio is processed only on this computer.");
@@ -234,21 +306,36 @@ public partial class MainWindow : Window
     private void SaveClick(object sender, RoutedEventArgs e)
     {
         if (busy || capture is not null) return;
+        SetSaveFeedback(null);
         try
         {
             var next = settings with { Language = DictationLanguage.SelectedIndex switch { 1 => "cs", 2 => "en", _ => "auto" }, Microphone = Microphone.SelectedIndex,
                 Provider = Provider.SelectedIndex == 1 ? "nvidia" : "offline", CloudConsentVersion = Provider.SelectedIndex == 1 && CloudConsent.IsChecked == true ? 1 : 0,
                 RememberNvidiaKey = RememberCloudKey.IsChecked == true,
-                PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, HoldThresholdMs = int.Parse(HoldThreshold.Text), ShowIdleBubble = IdleBubble.IsChecked == true,
+                PushToTalk = PushToTalk.IsChecked == true, Key = (int)ShortcutKey.SelectedValue, HoldThresholdMs = int.TryParse(HoldThreshold.Text, out var holdMs) ? holdMs : throw new InvalidDataException(T("Délka držení musí být celé číslo 100–1000 ms.", "The hold threshold must be a whole number from 100 to 1000 ms.")), ShowIdleBubble = IdleBubble.IsChecked == true,
                 Model = modelFiles[Model.SelectedIndex], Threads = Threads.SelectedIndex + 1, Theme = ThemeName, UiLanguage = locale };
             var key = PrepareCloudSettings(next);
-            if (!reviewMode) next.Save(); settings = next; idleBubbleOverride = null;
+            // Atomic write first: only a configuration that reached disk (or review mode) becomes active.
+            if (!reviewMode) next.Save();
+            settings = next; settingsSource = Settings.LoadSource.File; idleBubbleOverride = null;
             sessionNvidiaKey = key; cloudApproved = next.Provider == "nvidia" && next.CloudConsentVersion == 1;
             NvidiaKey.Clear(); UpdateCloudControls();
-            if (reviewMode || ConfigureShortcut()) { ReadyStatus(); ResetBubble(); }
-            UpdateSummaries(); PendingText.Text = T("Uloženo.", "Saved.");
+            var shortcutOk = reviewMode || ConfigureShortcut();
+            if (shortcutOk) { ReadyStatus(); ResetBubble(); }
+            UpdateSummaries(); hasPending = false;
+            PendingText.Text = T("Uloženo. Aktivní: ", "Saved. Active: ") + ActiveSummary();
+            if (!shortcutOk) SetSaveFeedback(T("⚠ Nastavení je uloženo, ale zkratka není aktivní. Zvolte jinou klávesu a uložte znovu.", "⚠ Settings are saved, but the shortcut is not active. Choose another key and save again."));
+            if (!reviewMode) Diagnostics.Mark("config_active", settings.DiagnosticView(MicrophoneName(settings.Microphone), settingsSource));
         }
-        catch (Exception error) { Notify(error); }
+        catch (Exception error)
+        {
+            // The visible, persistent explanation lives next to the Save button, not only on the hidden Overview page.
+            var notice = ErrorNotice.From(error, locale);
+            SetSaveFeedback("⚠ " + T("Nastavení NEBYLO uloženo. ", "Settings were NOT saved. ") + notice.Title + (string.IsNullOrEmpty(notice.Message) ? "" : " " + notice.Message) +
+                "\n" + T("Stále platí: ", "Still active: ") + ActiveSummary());
+            Diagnostics.Mark("settings_save_failed", new { error_type = error.GetType().Name });
+            Notify(error);
+        }
     }
     private bool ConfigureShortcut()
     {
@@ -319,7 +406,7 @@ public partial class MainWindow : Window
                 bubble.PlaceForWindow(target.Window); bubble.SetPreparing(locale); SetStatus(T("Připravuji mikrofon…", "Preparing microphone…"));
                 audio.Start(); ResultText.Clear(); EnterActive(); recordingTime.Restart(); recordingTimer.Start();
                 if (audio.FirstBufferTick != 0 && capture == audio) { bubble.SetRecording(locale); SetStatus(T("Nahrávám – mluvte.", "Recording – speak now.")); }
-                RefreshBubble(); Diagnostics.Mark("recording_started");
+                RefreshBubble(); Diagnostics.Mark("recording_started"); Diagnostics.Mark("config_at_recording", settings.DiagnosticView(MicrophoneName(settings.Microphone), settingsSource));
             }
             catch (Exception error) { capture?.Dispose(); capture = null; holdPressedAt = null; ExitActive(); Notify(error); }
             return;
@@ -388,10 +475,11 @@ public partial class MainWindow : Window
         SystemEvents.SessionSwitch -= OnSessionSwitch; SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         Closing -= OnClosing; Close(); Application.Current.Shutdown(Environment.ExitCode);
     }
-    private void OnClosing(object? sender, CancelEventArgs e) { if (!closing) { e.Cancel = true; Hide(); } }
-    private void NavigateClick(object sender, RoutedEventArgs e) => Navigate(!preferencesOpen);
-    private void BackToWorkClick(object sender, RoutedEventArgs e) => Hide();
-    private void MinimizeClick(object sender, RoutedEventArgs e) => Hide();
+    private void OnClosing(object? sender, CancelEventArgs e) { if (!closing) { e.Cancel = true; HideConfirmed(); } }
+    private void NavigateClick(object sender, RoutedEventArgs e) { if (preferencesOpen && !ConfirmLeave()) return; Navigate(!preferencesOpen); }
+    private void HideConfirmed() { if (ConfirmLeave()) Hide(); }
+    private void BackToWorkClick(object sender, RoutedEventArgs e) => HideConfirmed();
+    private void MinimizeClick(object sender, RoutedEventArgs e) => HideConfirmed();
     private void CloseClick(object sender, RoutedEventArgs e) => Close();
     private void RefreshClick(object sender, RoutedEventArgs e) { RefreshMicrophones(); if (!busy && capture is null) ReadyStatus(); }
     private void ClearClick(object sender, RoutedEventArgs e) => ResultText.Clear();

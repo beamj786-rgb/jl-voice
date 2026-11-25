@@ -20,7 +20,14 @@ internal static class Program
             Diagnostics.Mark("process_started");
         }
         using var singleton = new Mutex(true, "Local\\JLVoice.Portable", out var created);
-        if (!created) return;
+        if (!created)
+        {
+            // Never exit silently: tell the user which build is already running (diagnostics runs stay quiet).
+            if (!review && !Diagnostics.Enabled)
+                MessageBox.Show(InstanceConflict.Describe(InstanceConflict.FindOthers(), BuildInfo.Identity, AppContext.BaseDirectory), "JL Voice", MessageBoxButton.OK, MessageBoxImage.Information);
+            Diagnostics.Mark("second_instance_exit");
+            return;
+        }
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Appearance.Initialize();
         var window = new MainWindow(review); app.MainWindow = window;

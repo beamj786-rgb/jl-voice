@@ -15,15 +15,18 @@ public partial class MainWindow
     private void ShowRecognition(AsrEngine.Result result, byte[] wav, CaptureTiming? timing = null)
     {
         var stats = AudioStats.Analyze(wav);
-        Diagnostics.Mark("build", new { commit = BuildInfo.Commit });
         Diagnostics.Mark("audio_stats", new { seconds = stats?.Seconds, peak_dbfs = stats?.PeakDbfs, rms_dbfs = stats?.RmsDbfs, clipped = stats?.ClippedFraction, active = stats?.ActiveFraction, low_level = stats?.LowLevel });
         ResultText.Text = result.Text;
-        RecognitionMetrics.Text = $"{result.Model} · {result.Language}\n" + T("Nahrávka", "Recording") + $": {result.AudioSeconds:F2} s · " +
+        var cloud = result.Backend == "nvidia";
+        // Which backend produced THIS text, what was requested, and what (if anything) the engine reported.
+        RecognitionMetrics.Text = T("Backend: ", "Backend: ") + (cloud ? "NVIDIA cloud" : "Offline") + $" · {result.Model}\n" +
+            T("Požadovaný jazyk: ", "Requested language: ") + result.Language + " · " + T("zjištěný: ", "detected: ") + (result.Detected ?? T("neuvedeno", "not reported")) + "\n" +
+            T("Nahrávka", "Recording") + $": {result.AudioSeconds:F2} s · " +
             (result.InferenceMs is { } inference ? T("Inference", "Inference") + $": {inference / 1000:F2} s · " : "") +
-            (result.InferenceMs is null ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s" +
+            (cloud ? T("Cloudový požadavek", "Cloud request") : T("Celý STT proces", "STT process total")) + $": {result.WorkerWallMs / 1000:F2} s" +
             (stats is null ? "" : "\n" + stats.Describe(locale == "cs")) +
             (timing is null ? "" : "\n" + timing.Describe(locale == "cs")) +
-            "\nBuild: " + (BuildInfo.Commit ?? "n/a");
+            "\nBuild: " + BuildInfo.Identity.Describe();
     }
     // Nothing is inserted. No speech: explain; suspicious: keep the text visible for manual review/copy.
     private void ShowWithheld(AsrEngine.Result result)

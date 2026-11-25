@@ -103,7 +103,8 @@ public partial class MainWindow
             token.ThrowIfCancellationRequested();
             using var reader = new WaveFileReader(new MemoryStream(wav, writable: false));
             Diagnostics.Mark("cloud_request_completed", new { provider = "nvidia", request_ms = result.RequestMs, audio_seconds = reader.TotalTime.TotalSeconds });
-            return new(result.Text, "NVIDIA cloud · Parakeet TDT", settings.Language, reader.TotalTime.TotalSeconds, null, result.RequestMs);
+            // The hosted endpoint does not report a detected language: Detected stays null (unknown), never the requested value.
+            return new(result.Text, "NVIDIA cloud · Parakeet TDT", settings.Language, reader.TotalTime.TotalSeconds, null, result.RequestMs, Backend: "nvidia");
         }
         catch (CloudSpeechException error)
         {
